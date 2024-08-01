@@ -217,7 +217,115 @@ namespace WebAPIAlmacen.Controllers
             return Ok(familia);
         }
 
+        [HttpPost]
+        public async Task<ActionResult> PostFamilia(DTOFamilia familia)
+        {
+            var newFamilia = new Familia()
+            {
+                Nombre = familia.Nombre
+            };
 
+            var estatus1 = context.Entry(newFamilia).State;
+
+            await context.AddAsync(newFamilia);
+            var estatus2 = context.Entry(newFamilia).State;
+
+            await context.SaveChangesAsync();
+            var estatus3 = context.Entry(newFamilia).State;
+
+            return Created("Familia", new { familia = newFamilia });
+        }
+
+        [HttpPost("varios")]
+        public async Task<ActionResult> PostFamilias(DTOFamilia[] familias)
+        {
+            List<Familia> variasFamilias = new();
+            foreach (var f in familias)
+            {
+                variasFamilias.Add(new Familia
+                {
+                    Nombre = f.Nombre
+                });
+            }
+            await context.AddRangeAsync(variasFamilias);
+            await context.SaveChangesAsync();
+            return Ok();
+        }
+
+        [HttpPut]
+        public async Task<ActionResult> PutFamilia([FromBody] DTOFamilia familia)
+        {
+            var familiaUpdate = await context.Familias.AsTracking().FirstOrDefaultAsync(x => x.Id == familia.Id);
+            if (familiaUpdate == null)
+            {
+                return NotFound();
+            }
+            familiaUpdate.Nombre = familia.Nombre;
+
+            await context.SaveChangesAsync();
+            return NoContent();
+        }
+
+        [HttpDelete("{id:int}")]
+        public async Task<ActionResult> Delete(int id)
+        {
+            var hayProductos = await context.Productos.AnyAsync(x => x.FamiliaId == id);
+            if (hayProductos)
+            {
+                return BadRequest("Hay productos relacionados");
+            }
+            var familia = await context.Familias.FirstOrDefaultAsync(x => x.Id == id);
+
+            if (familia is null)
+            {
+                return NotFound();
+            }
+
+            context.Remove(familia);
+            await context.SaveChangesAsync();
+            return Ok();
+        }
+
+        // Borra relacionados
+        [HttpDelete("relacionados/{id:int}")]
+        public async Task<ActionResult> DeleteFamiliaProductos(int id)
+        {
+            var familia = await context.Familias.Include(x => x.Productos).FirstOrDefaultAsync(x => x.Id == id);
+
+            if (familia is null)
+            {
+                return NotFound();
+            }
+
+            context.RemoveRange(familia.Productos);
+
+            context.Remove(familia);
+            await context.SaveChangesAsync();
+            return Ok();
+        }
+
+        [HttpGet("sql/{id:int}")]
+        public async Task<ActionResult<Familia>> FamiliaPorIdSQL(int id)
+        {
+            var familia = await context.Familias
+                        .FromSqlInterpolated($"SELECT * FROM Familias WHERE Id = {id}")
+                        .FirstOrDefaultAsync();
+
+            if (familia == null)
+            {
+                return NotFound();
+            }
+            return Ok(familia);
+        }
+
+        [HttpPost("sql")]
+        public async Task<ActionResult> Post(DTOFamilia familia)
+        {
+            //Ejemplo de sentencia SQL de inserción	
+            await context.Database.ExecuteSqlInterpolatedAsync($@"INSERT INTO Familias(Nombre) VALUES({familia.Nombre})");
+
+            return Ok();
+        }
 
 
     }
