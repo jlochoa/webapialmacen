@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json.Serialization;
+using WebAPIAlmacen.Filters;
 using WebAPIAlmacen.Middlewares;
 using WebAPIAlmacen.Models;
 using WebAPIAlmacen.Services;
@@ -19,7 +20,12 @@ builder.Services.AddDbContext<MiAlmacenContext>(options =>
 );
 // Add services to the container.
 
-builder.Services.AddControllers().AddJsonOptions(options => options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles);
+builder.Services.AddControllers(options =>
+{
+    options.Filters.Add(typeof(FiltroDeExcepcion));
+
+}).AddJsonOptions(options => options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles);
+
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();

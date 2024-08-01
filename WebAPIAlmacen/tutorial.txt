@@ -93,5 +93,19 @@ petición (HttpContext). Dentro del InvokeAsync programamos la lógica del Middlew
 transformar una petición. Si decidimos que la petición debe continuar, especificamos que debe proseguir con el siguiente
 middleware (next(httpContext))
 
+------------------------------------------------------------------------------------------------------------
+Filtros
+
+Los filtros son procesos que se ejecutan tras los middlewares. Pueden servir, por ejemplo, como filtros de autorización 
+para examinar si un usuario puede acceder a determinados puntos de acceso. También nos pueden servir para controlar
+de forma global excepciones. Este es el llamado filtro de excepción. Los filtros son clases que suelen ir en una carpeta Filters
+El filtro de excepción es una clase que hereda de ExceptionFilterAttribute. El método OnException viene ya con la información de la excepción.
+Será en este método donde programemos la respuesta común a todas las excepciones.
+En el program, los filtros hay que registrarlos en el método AddControllers
+
+
+
+
+
 
 
