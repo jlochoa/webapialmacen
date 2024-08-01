@@ -1,0 +1,6 @@
+@WebAPIAlmacen_HostAddress = http://localhost:5011
+
+GET {{WebAPIAlmacen_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

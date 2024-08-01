@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.10.35122.118
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WebAPIAlmacen", "WebAPIAlmacen\WebAPIAlmacen.csproj", "{52029776-E021-473A-A1E7-A65C8B9231AD}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{52029776-E021-473A-A1E7-A65C8B9231AD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{52029776-E021-473A-A1E7-A65C8B9231AD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{52029776-E021-473A-A1E7-A65C8B9231AD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{52029776-E021-473A-A1E7-A65C8B9231AD}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {BB06FAA0-E364-4022-9388-04284C307244}
+	EndGlobalSection
+EndGlobal

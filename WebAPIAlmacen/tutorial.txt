@@ -1,0 +1,28 @@
+Crear proyecto
+
+Elegir plantilla de proyecto Webapi, dar un nombre al proyecto y dejar las opciones por defecto.
+Eliminar el archivo WeatherForecast.cs y el controller WeatherForecastController
+
+Crear la base de datos MiAlmacen con estos scripts
+CREATE TABLE Familias (
+  Id              INT           NOT NULL    IDENTITY    PRIMARY KEY,
+  Nombre           NVARCHAR(100)  NOT NULL
+);
+
+CREATE TABLE Productos (
+    Id              INT           NOT NULL    IDENTITY    PRIMARY KEY,
+    Nombre        NVARCHAR (150) NOT NULL,
+    Precio        DECIMAL (9, 2) NOT NULL,
+    FechaAlta     DATE           NULL,
+    Descatalogado BIT            NOT NULL,
+    FotoURL       NVARCHAR (MAX) NULL,
+    FamiliaId     INT            NOT NULL,
+    CONSTRAINT FK_Familias_Productos FOREIGN KEY (FamiliaId) REFERENCES Familias (Id)
+);
+
+Agregar los paquetes necesarios a la aplicación desde Herramientas, Administrador de paquetes Nuget.
+Instalar estos paquetes:
+Microsoft.EntityFrameworkCore.SqlServer 
+Microsoft.EntityFrameworkCore.Tools 
+
+-----------------------------------------------------------------------------------------------------------
