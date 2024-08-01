@@ -82,4 +82,16 @@ Estos servicios se construyen siempre igual, siendo el método StartAsync el que 
 iniciarse el servicio y el StopAsync el que se ejecuta al finalizar el servicio. En ambos métodos programaríamos la
 lógica del servicio
 
+------------------------------------------------------------------------------------------------------------
+Middlewares
+
+Los Middlewares son procesos que se ejecutan uno tras otro tras llegar una petición al servidor. Los distinguimos en el program
+por su prefijo use. Muchos tienen lógica ya predefinida y otros los podemos desarrollar nosotros.
+Cuando necesitamos desarrollar uno, creamos una clase en una ubicación, habitualmente una carpeta Middlewares, inyectamos
+como dependencia de la clase RequestDelegate e incluimos el método InvokeAsync. Este método ya viene con la información de la 
+petición (HttpContext). Dentro del InvokeAsync programamos la lógica del Middleware. Podemos analizar, rechazar e incluso
+transformar una petición. Si decidimos que la petición debe continuar, especificamos que debe proseguir con el siguiente
+middleware (next(httpContext))
+
+
 

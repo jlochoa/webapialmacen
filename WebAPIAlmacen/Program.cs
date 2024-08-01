@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json.Serialization;
+using WebAPIAlmacen.Middlewares;
 using WebAPIAlmacen.Models;
 using WebAPIAlmacen.Services;
 
@@ -48,7 +49,7 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 app.UseAuthorization();
-
+app.UseMiddleware<GestionYRegistroMiddleware>();
 app.MapControllers();
 
 app.Run();
