@@ -103,6 +103,12 @@ El filtro de excepción es una clase que hereda de ExceptionFilterAttribute. El m
 Será en este método donde programemos la respuesta común a todas las excepciones.
 En el program, los filtros hay que registrarlos en el método AddControllers
 
+------------------------------------------------------------------------------------------------------------
+CORS
+
+Para especificar una cors policy que controle a nivel general el tipo de peticiones que se aceptan y desde donde,
+simplemente debemos especificar en el Program estas características y emplear el middleware UseCors
+
 
 
 
