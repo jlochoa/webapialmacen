@@ -26,3 +26,11 @@ Microsoft.EntityFrameworkCore.SqlServer
 Microsoft.EntityFrameworkCore.Tools 
 
 -----------------------------------------------------------------------------------------------------------
+Crear los modelos mediante Scaffold
+Ejecutar el siguiente comando desde la consola de paquetes Nuget
+Scaffold-DbContext "Data Source=localhost;Initial Catalog=MiAlmacen;Integrated Security=True;TrustServerCertificate=true" -Provider Microsoft.EntityFrameworkCore.SqlServer -OutputDir Models -force -project WebAPIAlmacen
+
+Debemos sustituir el Data Source por la configuración de nuestro servidor
+Al ejecutarse el comando se crea la carpeta Models con los modelos de datos y MiAlmacenContext con la configuración y estructura de la base de datos
+-----------------------------------------------------------------------------------------------------------
+
