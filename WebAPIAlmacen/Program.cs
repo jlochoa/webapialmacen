@@ -33,6 +33,7 @@ builder.Services.AddTransient<OperacionesService>();
 // El ContextAccesor lo registramos porque en algún servicio vamos a necesitarlo para obtener información de la petición, por ejemplo la ip 
 // desde donde se hace la petición
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddTransient<GestorArchivosLocal>();
 
 var app = builder.Build();
 

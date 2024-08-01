@@ -14,11 +14,13 @@ namespace WebAPIAlmacen.Controllers
 
         private readonly MiAlmacenContext context;
         private readonly OperacionesService operacionesService;
+        private readonly GestorArchivosLocal gestorArchivosLocal;
 
-        public ProductosController(MiAlmacenContext context,OperacionesService operacionesService)
+        public ProductosController(MiAlmacenContext context,OperacionesService operacionesService, GestorArchivosLocal gestorArchivosLocal)
         {
             this.context = context;
             this.operacionesService = operacionesService;
+            this.gestorArchivosLocal = gestorArchivosLocal;
         }
 
         [HttpGet]
@@ -74,6 +76,56 @@ namespace WebAPIAlmacen.Controllers
             return Ok(productos);
         }
 
+        [HttpPost]
+        public async Task<ActionResult> PostProductos([FromForm] DTOProductoAgregar producto)
+        {
+            Producto newProducto = new Producto
+            {
+                Nombre = producto.Nombre,
+                Precio = producto.Precio,
+                Descatalogado = false,
+                FechaAlta = DateOnly.FromDateTime(DateTime.Now),
+                FamiliaId = producto.FamiliaId,
+                FotoUrl = ""
+            };
+
+            if (producto.Foto != null)
+            {
+                using (var memoryStream = new MemoryStream())
+                {
+                    // Extraemos la imagen de la petición
+                    await producto.Foto.CopyToAsync(memoryStream);
+                    // La convertimos a un array de bytes que es lo que necesita el método de guardar
+                    var contenido = memoryStream.ToArray();
+                    // La extensión la necesitamos para guardar el archivo
+                    var extension = Path.GetExtension(producto.Foto.FileName);
+                    // Recibimos el nombre del archivo
+                    // El servicio Transient GestorArchivosLocal instancia el servicio y cuando se deja de usar se destruye
+                    newProducto.FotoUrl = await gestorArchivosLocal.GuardarArchivo(contenido, extension, "imagenes",
+                        producto.Foto.ContentType);
+                }
+            }
+
+            await context.AddAsync(newProducto);
+            await context.SaveChangesAsync();
+            return Ok(newProducto);
+        }
+
+        [HttpDelete("{id}")]
+        public async Task<ActionResult> DeleteProductos([FromRoute] int id)
+        {
+            var producto = await context.Productos.FindAsync(id);
+            if (producto == null)
+            {
+                return NotFound();
+            }
+
+            await gestorArchivosLocal.BorrarArchivo(producto.FotoUrl, "imagenes");
+            context.Remove(producto);
+            await context.SaveChangesAsync();
+            return Ok();
+        }
     }
 
 }
+
