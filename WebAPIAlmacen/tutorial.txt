@@ -65,5 +65,13 @@ Cada servicio es una clase autónoma en cuyo constructor se registran las depende
 Una vez desarrollado, se registra en el program. Después, en los controllers donde se usa se debe inyectar como
 dependencia de la misma manera que lo hacemos con el context
 
+------------------------------------------------------------------------------------------------------------
+Servicios con interfaces
+
+Como buena práctica, se pueden crear interfaces como especificaciones para los servicios. Si hacemos esto,
+en el program el servicio se debe registrar a partir de la interface y en cada controller el servicio se debe
+registrar haciendo referencia a la interface
+------------------------------------------------------------------------------------------------------------
+
 
 

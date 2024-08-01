@@ -14,9 +14,9 @@ namespace WebAPIAlmacen.Controllers
 
         private readonly MiAlmacenContext context;
         private readonly OperacionesService operacionesService;
-        private readonly GestorArchivosLocal gestorArchivosLocal;
+        private readonly IGestorArchivos gestorArchivosLocal;
 
-        public ProductosController(MiAlmacenContext context,OperacionesService operacionesService, GestorArchivosLocal gestorArchivosLocal)
+        public ProductosController(MiAlmacenContext context,OperacionesService operacionesService, IGestorArchivos gestorArchivosLocal)
         {
             this.context = context;
             this.operacionesService = operacionesService;

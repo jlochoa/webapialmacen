@@ -1,6 +1,6 @@
 ﻿namespace WebAPIAlmacen.Services
 {
-    public class GestorArchivosLocal
+    public class GestorArchivosLocal : IGestorArchivos
     {
         private readonly IWebHostEnvironment env; // Para poder localizar wwwroot
         private readonly IHttpContextAccessor httpContextAccessor; // Para conocer la configuración del servidor para construir la url de la imagen
