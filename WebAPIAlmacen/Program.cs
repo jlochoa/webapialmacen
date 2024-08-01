@@ -34,6 +34,7 @@ builder.Services.AddTransient<OperacionesService>();
 // desde donde se hace la petición
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddTransient<IGestorArchivos, GestorArchivosLocal>();
+builder.Services.AddHostedService<TareaProgramadaService>();
 
 var app = builder.Build();
 

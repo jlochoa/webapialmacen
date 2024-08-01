@@ -71,7 +71,15 @@ Servicios con interfaces
 Como buena práctica, se pueden crear interfaces como especificaciones para los servicios. Si hacemos esto,
 en el program el servicio se debe registrar a partir de la interface y en cada controller el servicio se debe
 registrar haciendo referencia a la interface
-------------------------------------------------------------------------------------------------------------
 
+------------------------------------------------------------------------------------------------------------
+Servicios para tareas programadas
+Estos servicios son Singleton porque solo se ejecuta una instancia de estos en el servidor. Para desarrollar
+este tipo de servicios, estas clases deben heredar de IHostedService y en el program se deben registrar mediante
+el método AddHostedService
+
+Estos servicios se construyen siempre igual, siendo el método StartAsync el que se ejecuta de forma automática al
+iniciarse el servicio y el StopAsync el que se ejecuta al finalizar el servicio. En ambos métodos programaríamos la
+lógica del servicio
 
 
