@@ -17,6 +17,8 @@ public partial class MiAlmacenContext : DbContext
 
     public virtual DbSet<Familia> Familias { get; set; }
 
+    public virtual DbSet<Operacione> Operaciones { get; set; }
+
     public virtual DbSet<Producto> Productos { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
@@ -30,6 +32,16 @@ public partial class MiAlmacenContext : DbContext
             entity.HasKey(e => e.Id).HasName("PK__Familias__3214EC07F3B989A2");
 
             entity.Property(e => e.Nombre).HasMaxLength(100);
+        });
+
+        modelBuilder.Entity<Operacione>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__Operacio__3214EC078C3733CE");
+
+            entity.Property(e => e.Controller).HasMaxLength(50);
+            entity.Property(e => e.FechaAccion).HasColumnType("datetime");
+            entity.Property(e => e.Ip).HasMaxLength(50);
+            entity.Property(e => e.Operacion).HasMaxLength(50);
         });
 
         modelBuilder.Entity<Producto>(entity =>

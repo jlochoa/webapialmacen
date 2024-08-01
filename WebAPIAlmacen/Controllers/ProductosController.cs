@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using WebAPIAlmacen.DTOs;
 using WebAPIAlmacen.Models;
+using WebAPIAlmacen.Services;
 
 namespace WebAPIAlmacen.Controllers
 {
@@ -12,10 +13,20 @@ namespace WebAPIAlmacen.Controllers
     {
 
         private readonly MiAlmacenContext context;
+        private readonly OperacionesService operacionesService;
 
-        public ProductosController(MiAlmacenContext context)
+        public ProductosController(MiAlmacenContext context,OperacionesService operacionesService)
         {
             this.context = context;
+            this.operacionesService = operacionesService;
+        }
+
+        [HttpGet]
+        public async Task<ActionResult> GetProductos()
+        {
+            var productos = await context.Productos.ToListAsync();
+            await operacionesService.AddOperacion("Get", "Productos");
+            return Ok(productos);
         }
 
         [HttpGet("productosagrupadospordescatalogado")]

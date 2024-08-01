@@ -57,7 +57,13 @@ Cada punto de acceso del controller:
     Opcionalmente, podemos tener en cuenta ajustar el tracking en la aplicación. Para ello, en el Program debemos deshabilitarlo
     y en los controladores, activar el tracking en las operaciones necesarias (modificaciones de datos)
 
-
+------------------------------------------------------------------------------------------------------------
+Servicios
+Un servicio centraliza operaciones que de forma reiterada vamos a necesitar en el proyecto
+Lo habitual es crear una carpeta Services e ir creando los servicios dentro
+Cada servicio es una clase autónoma en cuyo constructor se registran las dependencias que necesita
+Una vez desarrollado, se registra en el program. Después, en los controllers donde se usa se debe inyectar como
+dependencia de la misma manera que lo hacemos con el context
 
 
 
