@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json.Serialization;
 using WebAPIAlmacen.Models;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -9,10 +10,14 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 // Nuestros servicios resolverán dependencias de otras clases
 // Registramos en el sistema de inyección de dependencias de la aplicación el ApplicationDbContext
 builder.Services.AddDbContext<MiAlmacenContext>(options =>
-            options.UseSqlServer(connectionString));
+{
+    options.UseSqlServer(connectionString);
+    options.UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking);
+}
+);
 // Add services to the container.
 
-builder.Services.AddControllers();
+builder.Services.AddControllers().AddJsonOptions(options => options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles);
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();

@@ -41,6 +41,23 @@ en otras clases, normalmente controllers y/o servicios
 Creamos el controller de familias en la carpeta controller. Es MUY IMPORTANTE que cada controller tenga el sufijo controller
 En cada controller, inyectamos como dependencia el context (MiAlmacenContext) para poder utilizar la base de datos
 -----------------------------------------------------------------------------------------------------------
+Desarrollar controller de Familias
+
+Cada punto de acceso del controller:
+    Es un método debe ir precedido de el tipo de petición (Get, Post, Put o Delete habitualmente)
+    Debe ser asíncrono async Task y preferiblemete devolver un ActionResult para, además de la información, devolver el código de retorno,
+    por ejemplo, un Ok 200 cuando va todo bien o un Bad Request 400 cuando hay algún fallo
+    Al ser asíncrono, cada operación del context debe precederse por un await e incluir un método que contenga Async
+    Cada uno de los puntos de acceso debe tener una ruta diferente (por ejemplo, no puede haber dos [HttpGet], el segundo incluiría una ruta)
+    También puede haber argumentos. Estos argumentos son los que el punto de acceso necesitará para programar su lógica
+    Estos argumentos van entre paréntesis junto al nombre del método y deben coincidir en su nombre con los argumentos expuestos en la ruta
+    Por defecto, los argumentos se toman de la ruta ([FromRoute]). Si viene con sintaxis querystring van con [FromQuery] y si
+    vienen con archivos con [FromForm]
+
+    Opcionalmente, podemos tener en cuenta ajustar el tracking en la aplicación. Para ello, en el Program debemos deshabilitarlo
+    y en los controladores, activar el tracking en las operaciones necesarias (modificaciones de datos)
+
+
 
 
 
