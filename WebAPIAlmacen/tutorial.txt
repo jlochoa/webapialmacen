@@ -30,7 +30,17 @@ Crear los modelos mediante Scaffold
 Ejecutar el siguiente comando desde la consola de paquetes Nuget
 Scaffold-DbContext "Data Source=localhost;Initial Catalog=MiAlmacen;Integrated Security=True;TrustServerCertificate=true" -Provider Microsoft.EntityFrameworkCore.SqlServer -OutputDir Models -force -project WebAPIAlmacen
 
-Debemos sustituir el Data Source por la configuración de nuestro servidor
+Debemos sustituir el valor de Data Source por la configuración de nuestro servidor
 Al ejecutarse el comando se crea la carpeta Models con los modelos de datos y MiAlmacenContext con la configuración y estructura de la base de datos
 -----------------------------------------------------------------------------------------------------------
+Crear controller de Familias
+
+En el archivo appsettings.development.json ponemos la cadena de conexión de la base de datos
+En el program registramos la conexión leyendo la cadena de conexión anterior y creando un context que pueda inyectarse
+en otras clases, normalmente controllers y/o servicios
+Creamos el controller de familias en la carpeta controller. Es MUY IMPORTANTE que cada controller tenga el sufijo controller
+En cada controller, inyectamos como dependencia el context (MiAlmacenContext) para poder utilizar la base de datos
+-----------------------------------------------------------------------------------------------------------
+
+
 

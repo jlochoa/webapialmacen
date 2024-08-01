@@ -1,5 +1,15 @@
+using Microsoft.EntityFrameworkCore;
+using WebAPIAlmacen.Models;
+
 var builder = WebApplication.CreateBuilder(args);
 
+// Capturamos del app.settings la cadena de conexión a la base de datos
+// Configuration.GetConnectionString va directamente a la propiedad ConnectionStrings y de ahí tomamos el valor de DefaultConnection
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+// Nuestros servicios resolverán dependencias de otras clases
+// Registramos en el sistema de inyección de dependencias de la aplicación el ApplicationDbContext
+builder.Services.AddDbContext<MiAlmacenContext>(options =>
+            options.UseSqlServer(connectionString));
 // Add services to the container.
 
 builder.Services.AddControllers();
