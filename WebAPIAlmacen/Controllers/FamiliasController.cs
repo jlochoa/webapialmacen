@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using System.Net;
 using WebAPIAlmacen.DTOs;
@@ -325,6 +326,41 @@ namespace WebAPIAlmacen.Controllers
             await context.Database.ExecuteSqlInterpolatedAsync($@"INSERT INTO Familias(Nombre) VALUES({familia.Nombre})");
 
             return Ok();
+        }
+
+        // Acceso a procedimientos almacenados
+
+        [HttpGet("procedimiento_almacenado/{id:int}")]
+        public async Task<ActionResult<Familia>> GetSP(int id)
+        {
+            var familias = context.Familias
+                        .FromSqlInterpolated($"EXEC Familias_ObtenerPorId {id}")
+                        .IgnoreQueryFilters()
+                        .AsAsyncEnumerable(); // No podemos volcar los resultados de un procedimiento en un List o First porque el procedimiento almacenado no es una consulta que EF pueda manejar 
+
+            // Solo obtenemos uno
+            await foreach (var familia in familias)
+            {
+                return familia;
+            }
+
+            return NotFound();
+        }
+
+        [HttpPost("Procedimiento_almacenado")]
+        public async Task<ActionResult> PostSP(DTOFamilia familia)
+        {
+            var outputId = new SqlParameter();
+            outputId.ParameterName = "@id";
+            outputId.SqlDbType = System.Data.SqlDbType.Int;
+            outputId.Direction = System.Data.ParameterDirection.Output;
+
+            await context.Database
+                .ExecuteSqlRawAsync("EXEC Familias_Insertar @nombre = {0}, @id = {1} OUTPUT",
+                familia.Nombre, outputId);
+
+            var id = (int)outputId.Value;
+            return Ok(id);
         }
 
 

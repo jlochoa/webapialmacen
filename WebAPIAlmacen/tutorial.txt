@@ -109,6 +109,35 @@ CORS
 Para especificar una cors policy que controle a nivel general el tipo de peticiones que se aceptan y desde donde,
 simplemente debemos especificar en el Program estas características y emplear el middleware UseCors
 
+------------------------------------------------------------------------------------------------------------
+Procedimientos almacenados
+
+Incluir los siguientes procedimientos almacenados agregando consultas a la base de datos
+
+CREATE PROCEDURE Familias_Insertar
+                @nombre nvarchar(150),
+                @id int OUTPUT
+                AS
+                BEGIN
+                SET NOCOUNT ON;
+                INSERT INTO Familias(Nombre)
+                VALUES (@nombre);
+                SELECT @id = SCOPE_IDENTITY();
+                END
+
+
+CREATE PROCEDURE Familias_ObtenerPorId
+                @id int
+                AS
+                BEGIN
+                SET NOCOUNT ON;
+                SELECT *
+                FROM Familias
+                WHERE Id = @id;
+                END
+
+En FamiliasController abrimos puntos de acceso (un post y un get) para poder ejecutarlos
+
 
 
 
