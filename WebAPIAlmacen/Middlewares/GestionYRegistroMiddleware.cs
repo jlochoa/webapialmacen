@@ -15,11 +15,11 @@
         public async Task InvokeAsync(HttpContext httpContext)
         {
             var IP = httpContext.Connection.RemoteIpAddress.ToString();
-            if (IP == "::1") // Bloquearía las peticiones de una IP
-            {
-                httpContext.Response.StatusCode = 400;
-                return;
-            }
+            //if (IP == "::1") // Bloquearía las peticiones de una IP
+            //{
+            //    httpContext.Response.StatusCode = 400;
+            //    return;
+            //}
             var ruta = httpContext.Request.Path.ToString();
 
             var path = $@"{env.ContentRootPath}\wwwroot\log.txt";
