@@ -1,4 +1,8 @@
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
+using System.Text;
 using System.Text.Json.Serialization;
 using WebAPIAlmacen.Filters;
 using WebAPIAlmacen.Middlewares;
@@ -50,7 +54,49 @@ builder.Services.AddTransient<OperacionesService>();
 // desde donde se hace la petición
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddTransient<IGestorArchivos, GestorArchivosLocal>();
-builder.Services.AddHostedService<TareaProgramadaService>();
+//builder.Services.AddHostedService<TareaProgramadaService>();
+builder.Services.AddDataProtection();
+builder.Services.AddTransient<HashService>();
+
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+               .AddJwtBearer(options => options.TokenValidationParameters = new TokenValidationParameters
+               {
+                   ValidateIssuer = false,
+                   ValidateAudience = false,
+                   ValidateLifetime = true,
+                   ValidateIssuerSigningKey = true,
+                   IssuerSigningKey = new SymmetricSecurityKey(
+                     Encoding.UTF8.GetBytes(builder.Configuration["ClaveJWT"]))
+               });
+
+
+builder.Services.AddSwaggerGen(c =>
+{
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.ApiKey,
+        Scheme = "Bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header
+    });
+
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+                {
+                    {
+                        new OpenApiSecurityScheme
+                        {
+                            Reference = new OpenApiReference
+                            {
+                                Type = ReferenceType.SecurityScheme,
+                                Id = "Bearer"
+                            }
+                        },
+                        new string[]{}
+                    }
+                });
+
+});
 
 var app = builder.Build();
 

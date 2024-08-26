@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using System.Net;
@@ -10,6 +11,7 @@ namespace WebAPIAlmacen.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class FamiliasController : ControllerBase
     {
         private readonly MiAlmacenContext context;

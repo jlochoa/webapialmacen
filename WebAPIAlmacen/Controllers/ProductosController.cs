@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using WebAPIAlmacen.DTOs;
@@ -9,6 +10,7 @@ namespace WebAPIAlmacen.Controllers
 {
     [ApiController]
     [Route("api/productos")]
+    [Authorize]
     public class ProductosController : ControllerBase
     {
 
@@ -24,6 +26,7 @@ namespace WebAPIAlmacen.Controllers
         }
 
         [HttpGet]
+        [AllowAnonymous]
         public async Task<ActionResult> GetProductos()
         {
             var productos = await context.Productos.ToListAsync();
@@ -32,6 +35,7 @@ namespace WebAPIAlmacen.Controllers
         }
 
         [HttpGet("productosagrupadospordescatalogado")]
+        [AllowAnonymous]
         public async Task<ActionResult> GetProductosAgrupadosPorDescatalogado()
         {
             var productos = await context.Productos.GroupBy(g => g.Descatalogado)

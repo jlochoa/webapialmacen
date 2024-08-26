@@ -20,3 +20,5 @@
 ::1 - /api/Familias
 127.0.0.1 - /api/Familias/sync
 127.0.0.1 - /api/Familias
+::1 - /api/usuarios/hash/nuevousuario
+::1 - /api/usuarios/login

@@ -141,6 +141,316 @@ En FamiliasController abrimos puntos de acceso (un post y un get) para poder eje
 
 
 
+------------------------------------------------------------------------------------------------------------
+SEGURIDAD
+
+Creamos la tabla de usuarios y hacemos el Scaffold
+
+CREATE TABLE [dbo].[Usuarios]
+(
+	[Id] INT NOT NULL PRIMARY KEY IDENTITY, 
+    [Email] NVARCHAR(100) NOT NULL, 
+    [Password] NVARCHAR(500) NOT NULL, 
+    [Salt] VARBINARY(MAX) NULL
+)
+
+------------------------------------------------------------------------------------------------------------
+Encriptación de doble vía
+
+Ponemos una clave de encriptación en la configuración (appsettings)
+
+  "ClaveEncriptacion": "123Curso2022321"
+
+Creamos una clase DTOUsuario en la carpeta DTO para recibir la información en el controller de usuarios
+Habilitamos en el Program la encriptación de doble vía:
+builder.Services.AddDataProtection();
+
+Ponemos los métodos de creación y autenticación de usuarios en el controller de Usuarios inyectando las dependencias necesarias
+
+ public class UsuariosController : ControllerBase
+    {
+
+        private readonly MiAlmacenContext context;
+        private readonly IConfiguration configuration;
+        private readonly IDataProtector dataProtector;
+        public UsuariosController(MiAlmacenContext context, IConfiguration configuration, IDataProtectionProvider dataProtectionProvider)
+        {
+            this.context = context;
+            this.configuration = configuration;
+            dataProtector = dataProtectionProvider.CreateProtector(configuration["ClaveEncriptacion"]);
+        }
+
+        [HttpPost("encriptar/nuevousuario")]
+        public async Task<ActionResult> PostNuevoUsuario([FromBody] DTOUsuario usuario)
+        {
+            var passEncriptado = dataProtector.Protect(usuario.Password);
+            var newUsuario = new Usuario
+            {
+                Email = usuario.Email,
+                Password = passEncriptado
+            };
+            await context.Usuarios.AddAsync(newUsuario);
+            await context.SaveChangesAsync();
+
+            return Ok(newUsuario);
+        }
+
+        [HttpPost("encriptar/checkusuario")]
+        public async Task<ActionResult> PostCheckUserPassEncriptado([FromBody] DTOUsuario usuario)
+        {
+            var usuarioDB = await context.Usuarios.FirstOrDefaultAsync(x => x.Email == usuario.Email);
+            if (usuarioDB == null)
+            {
+                return Unauthorized();
+            }
+
+            var passDesencriptado = dataProtector.Unprotect(usuarioDB.Password);
+            if (usuario.Password == passDesencriptado)
+            {
+                return Ok();
+            }
+            else
+            {
+                return Unauthorized();
+            }
+        }
+
+    }
+
+------------------------------------------------------------------------------------------------------------
+Encriptación de una vía (hash)
+
+En una clase ResultadoHash especificamos el tipo de información que utilizarán el controller de usuarios
+y el servicio de encriptación.
+La encriptación la vamos a incluir en un servicio para poder reutiizarla o incluso llevarla a otro proyecto.
+El servicio es HashService
+
+    public class HashService
+    {
+        // Un hash es una clave que no se puede revertir. Es lo correcto para contraseñas seguras
+        // El hash es lo que se guardará en la tabla de usuarios.
+        // Las funciones que generan hash también nos van a servir para contrastarlos
+        // Un salt es un valor aleatorio que se anexa al texto plano al que queremos aplicar la función que genera el hash
+        // Añade más seguridad porque, uniendo un salt aleatorio al password, los valores siempre serán diferentes
+        // Si generamos el password sin salt, basándonos solo en el password (que es solo un texto plano) los hashes generados basados en ese password siempre serán iguales
+        // El salt se debe guardar junto al password para contrastar el login
+
+        // Método para generar el salt
+        public ResultadoHash Hash(string textoPlano)
+        {
+            // Generamos el salt aleatorio
+            var salt = new byte[16];
+            using (var random = RandomNumberGenerator.Create())
+            {
+                random.GetBytes(salt); // Genera un array aleatorio de bytes
+            }
+
+            // Llamamos al método ResultadoHash y retornamos el hash con el salt
+            return Hash(textoPlano, salt);
+        }
+
+
+        public ResultadoHash Hash(string textoPlano, byte[] salt)
+        {
+            //Pbkdf2 es un algoritmo de encriptación
+            var claveDerivada = KeyDerivation.Pbkdf2(password: textoPlano,
+                salt: salt, prf: KeyDerivationPrf.HMACSHA1,
+                iterationCount: 10000,
+                numBytesRequested: 32);
+
+            var hash = Convert.ToBase64String(claveDerivada);
+
+            return new ResultadoHash()
+            {
+                Hash = hash,
+                Salt = salt
+            };
+        }
+    }
+
+El servicio hay que registrarlo en el program
+
+builder.Services.AddTransient<HashService>();
+
+Y luego, en el controller, empleamos el servicio para crear un usuario y ver si existe
+ private readonly AlmacenContext context;
+        private readonly IConfiguration configuration;
+        private readonly IHashService hashService;
+        private readonly AlmacenContext context;
+        private readonly IDataProtector dataProtector;
+        public UsuariosController(AlmacenContext context, IConfiguration configuration, IDataProtectionProvider dataProtectionProvider, IHashService hashService)
+        {
+            this.context = context;
+            this.configuration = configuration;
+            this.hashService = hashService;
+            dataProtector = dataProtectionProvider.CreateProtector(configuration["ClaveEncriptacion"]);
+        }
+...
+
+[HttpPost("hash/nuevousuario")]
+        public async Task<ActionResult> PostNuevoUsuarioHash([FromBody] DTOUsuario usuario)
+        {
+            var resultadoHash = hashService.Hash(usuario.Password);
+            var newUsuario = new Usuario
+            {
+                Email = usuario.Email,
+                Password = resultadoHash.Hash,
+                Salt = resultadoHash.Salt
+            };
+
+            await context.Usuarios.AddAsync(newUsuario);
+            await context.SaveChangesAsync();
+
+            return Ok(newUsuario);
+        }
+
+        [HttpPost("hash/checkusuario")]
+        public async Task<ActionResult> CheckUsuarioHash([FromBody] DTOUsuario usuario)
+        {
+            var usuarioDB = await context.Usuarios.FirstOrDefaultAsync(x => x.Email == usuario.Email);
+            if (usuarioDB == null)
+            {
+                return Unauthorized();
+            }
+
+            var resultadoHash = hashService.Hash(usuario.Password,usuarioDB.Salt);
+            if (usuarioDB.Password == resultadoHash.Hash)
+            {
+                return Ok();
+            }
+            else
+            {
+                return Unauthorized();
+            }
+
+        }
+
+
+---------------------------------------------------------------------------------------------
+JWT
+
+Para devolver un token de acceso a los usuarios autenticados, establecemos una clave de firma en la configuración del proyecto:
+
+ "ClaveJWT": "Curso@.net#2024_Talio"
+
+Creamos una clase para manejar la información que devolveremos al usuario autenticado (DTOLoginResponse)
+Y en un punto de acceso del controller de usuarios gestionamos el login
+
+  [HttpPost("login")]
+        public async Task<ActionResult> Login([FromBody] DTOUsuario usuario)
+        {
+            var usuarioDB = await context.Usuarios.FirstOrDefaultAsync(x => x.Email == usuario.Email);
+            if (usuarioDB == null)
+            {
+                return BadRequest();
+            }
+
+            var resultadoHash = hashService.Hash(usuario.Password, usuarioDB.Salt);
+            if (usuarioDB.Password == resultadoHash.Hash)
+            {
+                var response = GenerarToken(usuario);
+                return Ok(response);
+            }
+            else
+            {
+                return BadRequest();
+            }
+        }
+
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        [HttpPost("renovartoken")]
+        public async Task<ActionResult> RenovarToken([FromBody] DTOUsuario usuario)
+        {
+            var usuarioDB = await context.Usuarios.FirstOrDefaultAsync(x => x.Email == usuario.Email);
+            if (usuarioDB == null)
+            {
+                return BadRequest();
+            }
+
+            var response = GenerarToken(usuario);
+            return Ok(response);
+        }
+
+        private DTOLoginResponse GenerarToken(DTOUsuario credencialesUsuario)
+        {
+            var claims = new List<Claim>()
+            {
+                new Claim(ClaimTypes.Email, credencialesUsuario.Email),
+                new Claim("lo que yo quiera", "cualquier otro valor")
+            };
+
+            var clave = configuration["ClaveJWT"];
+            var claveKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(clave));
+            var signinCredentials = new SigningCredentials(claveKey, SecurityAlgorithms.HmacSha256);
+
+            var securityToken = new JwtSecurityToken(
+                claims: claims,
+                expires:DateTime.Now.AddDays(30),
+                signingCredentials: signinCredentials
+            );
+
+            
+            var tokenString = new JwtSecurityTokenHandler().WriteToken(securityToken);
+
+            return new DTOLoginResponse()
+            {
+                Token = tokenString,
+                Email = credencialesUsuario.Email
+            };
+        }
+
+Configuramos la autenticación en el Program
+
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+               .AddJwtBearer(options => options.TokenValidationParameters = new TokenValidationParameters
+               {
+                   ValidateIssuer = false,
+                   ValidateAudience = false,
+                   ValidateLifetime = true,
+                   ValidateIssuerSigningKey = true,
+                   IssuerSigningKey = new SymmetricSecurityKey(
+                     Encoding.UTF8.GetBytes(builder.Configuration["ClaveJWT"]))
+               });
+
+
+builder.Services.AddSwaggerGen(c =>
+{
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.ApiKey,
+        Scheme = "Bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header
+    });
+
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+                {
+                    {
+                        new OpenApiSecurityScheme
+                        {
+                            Reference = new OpenApiReference
+                            {
+                                Type = ReferenceType.SecurityScheme,
+                                Id = "Bearer"
+                            }
+                        },
+                        new string[]{}
+                    }
+                });
+
+});
+
+Incluimos la anotación Authorize en el controller que queramos o en los métodos
+También podemos habilitar algún método con [AllowAnonymous]
+
+Desde Swagger, debemos ver un botón verde Authorize para poder incluir un token. 
+Al darle, ponemos Bearer y después pegamos el token
+
+
+
+
+
 
 
 
