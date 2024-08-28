@@ -449,7 +449,188 @@ Al darle, ponemos Bearer y después pegamos el token
 
 
 
+---------------------------------------------------------------------------------------------
+Serilog
 
+Instalamos estos paquetes. A día de hoy el paquete Serilog.Sinks.MSSqlServer en su versión 6.6.1
+
+Serilog.AspNetCore
+Serilog.Settings.Configuration
+Serilog.Sinks.MSSqlServer
+
+Agregamos en el app.settings.Development la configuración de serilog
+
+ "Serilog": {
+    "MinimumLevel": "Information",
+    "WriteTo": [
+      {
+        "Name": "MSSqlServer",
+        "Args": {
+          "connectionString": "Data Source=localhost;Initial Catalog=MiAlmacen;Integrated Security=True;TrustServerCertificate=true",
+          "tableName": "Logs",
+          "autoCreateSqlTable": true
+        }
+      }
+    ]
+  }
+
+  Y en el Program registramos serilog para que de forma automática vaya anotando la actividad.
+  En este caso, el nivel de log es information y lo guardará en una tabla Logs de nuestra base de datos
+  Los diferentes niveles de log son: Critical, Error, Warning, Information, Debug y Trace
+
+----------------------------------------------------------------------------------------------
+Logs
+
+Mediante ILogger podemos hacer que un controller emita mensajes personalizados
+Hay que inyectar la dependencia en el controller y luego registrar los mensajes de log allá donde queramos,
+por ejemplo así:
+
+  logger.LogInformation(usuario.Email + " ha iniciado un login el día " +
+    DateTime.Now);  
+
+----------------------------------------------------------------------------------------------
+ANGULAR
+
+Creamos proyecto Angular, instalamos dependencias
+
+ng new AngularAlmacen 
+
+npm install bootstrap 
+npm install primeng@16.4.4 
+npm install primeicons
+
+En el archivo angular.json integramos estilos y scripts de primeng y bootstrap
+
+"styles": [
+              "node_modules/bootstrap/dist/css/bootstrap.min.css",
+              "node_modules/primeng/resources/themes/lara-light-blue/theme.css",
+              "node_modules/primeng/resources/primeng.min.css",
+              "node_modules/primeicons/primeicons.css"
+            ],
+            "scripts": [
+              "node_modules/bootstrap/dist/js/bootstrap.bundle.min.js"
+            ]
+
+
+Creamos módulos y componentes para la aplicación
+
+ng g m inicio
+
+ng g c inicio/login --skip-tests=true
+ng g c inicio/notFound --skip-tests=true
+ng g m almacen
+ng g c almacen/almacen -s --flat --skip-tests=true
+ng g c almacen/categorias --skip-tests=true
+ng g c almacen/productos --skip-tests=true
+ng g s almacen/almacen --skip-tests=true
+
+Creamos archivo de rutas app-routing.module.ts
+
+import { NgModule } from '@angular/core';
+import { Routes, RouterModule } from '@angular/router';
+import { LoginComponent } from './inicio/login/login.component';
+import { NotFoundComponent } from './inicio/not-found/not-found.component';
+
+const appRoutes: Routes = [
+  { path: '', redirectTo: '/login', pathMatch: 'full' },
+  { path: 'login', component: LoginComponent },
+  {
+    path: 'almacen',
+    loadChildren: () => import('./almacen/almacen.module').then((m) => m.AlmacenModule)
+  },
+  { path: '**', component: NotFoundComponent }
+];
+
+@NgModule({
+  imports: [RouterModule.forRoot(appRoutes)],
+  exports: [RouterModule]
+})
+export class AppRoutingModule {}
+
+Creamos el enrutamiento para el módulo de almacén
+import { NgModule } from '@angular/core';
+import { Routes, RouterModule } from '@angular/router';
+import { CategoriasComponent } from './categorias/categorias.component';
+import { ProductosComponent } from './productos/productos.component';
+import { AlmacenComponent } from './almacen.component';
+
+const appRoutes: Routes = [
+  {
+    path: '',
+    component: AlmacenComponent,
+    children: [
+      { path: '', redirectTo: '/almacen/categorias', pathMatch: 'full' },
+      { path: 'categorias', component: CategoriasComponent },
+      { path: 'productos', component: ProductosComponent }
+    ]
+  }
+];
+
+@NgModule({
+  imports: [RouterModule.forChild(appRoutes)],
+  exports: [RouterModule]
+})
+export class AlmacenRoutingModule {}
+
+
+Cambiamos el módulo almacén
+
+import { NgModule } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { CategoriasComponent } from './categorias/categorias.component';
+import { ProductosComponent } from './productos/productos.component';
+import { AlmacenComponent } from './almacen.component';
+import { AlmacenService } from './almacen.service';
+import { AlmacenRoutingModule } from './almacen-routing.module';
+
+@NgModule({
+  declarations: [CategoriasComponent, ProductosComponent, AlmacenComponent],
+  imports: [CommonModule, AlmacenRoutingModule],
+  providers: [AlmacenService]
+})
+export class AlmacenModule {}
+
+Cambiamos el app.component.html
+
+<h1>Gestión almacén</h1>
+<hr/>
+<router-outlet></router-outlet>
+
+Cambiamos el almacen.component.html
+
+<h1>Gestión almacén</h1>
+<hr/>
+<router-outlet></router-outlet>
+
+Cambiamos el módulo principal app.module para incluir el sistema de rutas y el módulo HttpClientModule
+
+import { NgModule } from '@angular/core';
+import { BrowserModule } from '@angular/platform-browser';
+import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
+
+import { AppComponent } from './app.component';
+import { AppRoutingModule } from './app-routing.module';
+import { HttpClientModule } from '@angular/common/http';
+
+@NgModule({
+  declarations: [AppComponent],
+  imports: [BrowserModule, BrowserAnimationsModule, HttpClientModule, AppRoutingModule],
+  bootstrap: [AppComponent]
+})
+export class AppModule {}
+
+Cambiamos el html y el css del not-found.component
+
+ <div class="row">
+  <div class="col">
+    <img src="https://www.seekahost.com/wp-content/uploads/2017/11/404-page-not-found.jpg" class="img-fluid" />
+  </div>
+</div>
+
+img {
+  height: 100%;
+  width: 100%;
+}
 
 
 

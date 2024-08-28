@@ -17,17 +17,22 @@ namespace WebAPIAlmacen.Controllers
     [Route("api/usuarios")]
     public class UsuariosController : ControllerBase
     {
-
         private readonly MiAlmacenContext context;
         private readonly IConfiguration configuration;
         private readonly IDataProtector dataProtector;
-        private HashService hashService;
-        public UsuariosController(MiAlmacenContext context, IConfiguration configuration, IDataProtectionProvider dataProtectionProvider, HashService hashService)
+        private readonly HashService hashService;
+        private readonly ILogger<UsuariosController> logger;
+
+        public UsuariosController(MiAlmacenContext context, IConfiguration configuration,
+            IDataProtectionProvider dataProtector, HashService hashService,
+            ILogger<UsuariosController> logger)
         {
             this.context = context;
             this.configuration = configuration;
-            dataProtector = dataProtectionProvider.CreateProtector(configuration["ClaveEncriptacion"]);
+            this.dataProtector = dataProtector.CreateProtector
+                (configuration["ClaveEncriptacion"]);
             this.hashService = hashService;
+            this.logger = logger;
         }
 
         [HttpPost("encriptar/nuevousuario")]
@@ -106,6 +111,7 @@ namespace WebAPIAlmacen.Controllers
         [HttpPost("login")]
         public async Task<ActionResult> Login([FromBody] DTOUsuario usuario)
         {
+            logger.LogInformation(usuario.Email + " ha iniciado un login el día " + DateTime.Now);
             var usuarioDB = await context.Usuarios.FirstOrDefaultAsync(x => x.Email == usuario.Email);
             if (usuarioDB == null)
             {
