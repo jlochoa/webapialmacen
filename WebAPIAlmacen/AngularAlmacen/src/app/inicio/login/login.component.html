@@ -1,1 +1,22 @@
-<p>login works!</p>
+<div class="text-center">
+  <form class="form-signin" #fLogin="ngForm" (submit)="login()">
+    <img class="mb-4" src="https://s3-eu-west-1.amazonaws.com/tpd/logos/5be01d787b5e5b0001ebb6bb/0x0.png" alt="login"
+      width="72" height="72">
+    <h1 class="h3 mb-3 font-weight-normal">Login</h1>
+    <div class="form-group">
+      <label for="email" class="sr-only">Usuario</label>
+      <input type="email" class="form-control" placeholder="Email" [(ngModel)]="infoLogin.email" name="email" id="email"
+        required>
+    </div>
+    <div class="form-group">
+      <label for="password" class="sr-only">Password</label>
+      <input type="password" class="form-control" placeholder="Contraseña" name="password" id="password"
+        [(ngModel)]="infoLogin.password" required>
+    </div>
+    <button class="btn btn-primary" type="submit" [hidden]="!fLogin.valid">Login</button>
+    <button class="btn btn-primary" type="submit" [hidden]="fLogin.valid" [disabled]="!fLogin.valid"
+      style="cursor:not-allowed">Login</button>
+    <p class="mt-5 mb-3 text-muted">Curso Angular 2024</p>
+  </form>
+  <p-toast></p-toast>
+</div>

@@ -632,6 +632,441 @@ img {
   width: 100%;
 }
 
+----------------------------------------------------------------------------------------------
+Autenticación
+
+Creamos las interfaces en una carpeta interfaces
+
+export interface ILogin {
+  email: string;
+  password: string;
+}
+
+export interface ILoginResponse {
+  email: string;
+  token: string;
+}
+
+Creamos servicio de autenticación y servicio vigilante (guard)
+ng g s services/app --skip-tests=true
+ng g s guards/authGuard --skip-tests=true
+
+Generar archivos de variables de entorno
+ng generate environments
+
+environment.development.json (cambiar el puerto si es necesario)
+export const environment = {
+    urlAPI: 'https://localhost:7127/api/'
+};
 
 
+Desarrollar el servicio de autenticación
 
+app.service.ts
+
+import { Injectable } from '@angular/core';
+import { Observable } from 'rxjs';
+import { HttpClient } from '@angular/common/http';
+import { environment } from 'src/environments/environment';
+import { ILogin, ILoginResponse } from '../interfaces/login.interface';
+
+@Injectable({
+  providedIn: 'root'
+})
+export class AppService {
+  urlAPI: string;
+
+  constructor(private http: HttpClient) {
+    this.urlAPI = environment.urlAPI;
+  }
+
+  login(credenciales: ILogin): Observable<ILoginResponse> {
+    return this.http.post<ILoginResponse>(`${this.urlAPI}usuarios/login`, credenciales);
+  }
+}
+
+Modificamos el módulo de inicio agregando el módulo de formularios y el ToastModule de Primeng para los mensajes del componente login
+
+inicio.module.ts
+
+import { NgModule } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { LoginComponent } from './login/login.component';
+import { NotFoundComponent } from './not-found/not-found.component';
+import { FormsModule } from '@angular/forms';
+import { ToastModule } from 'primeng/toast';
+
+
+@NgModule({
+  declarations: [
+    LoginComponent,
+    NotFoundComponent
+  ],
+  imports: [
+    CommonModule,FormsModule,ToastModule
+  ]
+})
+export class InicioModule { }
+
+Desarrollamos el componente login
+
+login.component.html
+
+<div class="text-center">
+  <form class="form-signin" #fLogin="ngForm" (submit)="login()">
+    <img class="mb-4" src="https://s3-eu-west-1.amazonaws.com/tpd/logos/5be01d787b5e5b0001ebb6bb/0x0.png" alt="login"
+      width="72" height="72">
+    <h1 class="h3 mb-3 font-weight-normal">Login</h1>
+    <div class="form-group">
+      <label for="email" class="sr-only">Usuario</label>
+      <input type="email" class="form-control" placeholder="Email" [(ngModel)]="infoLogin.email" name="email" id="email"
+        required>
+    </div>
+    <div class="form-group">
+      <label for="password" class="sr-only">Password</label>
+      <input type="password" class="form-control" placeholder="Contraseña" name="password" id="password"
+        [(ngModel)]="infoLogin.password" required>
+    </div>
+    <button class="btn btn-primary" type="submit" [hidden]="!fLogin.valid">Login</button>
+    <button class="btn btn-primary" type="submit" [hidden]="fLogin.valid" [disabled]="!fLogin.valid"
+      style="cursor:not-allowed">Login</button>
+    <p class="mt-5 mb-3 text-muted">Curso Angular 2024</p>
+  </form>
+  <p-toast></p-toast>
+</div>
+
+
+login.component.ts
+
+import { Component, OnInit } from '@angular/core';
+import { Router } from '@angular/router';
+import { MessageService } from 'primeng/api';
+import { AuthGuard } from 'src/app/guards/auth-guard.service';
+import { ILogin, ILoginResponse } from 'src/app/interfaces/login.interface';
+import { AppService } from 'src/app/services/app.service';
+
+@Component({
+  selector: 'app-login',
+  templateUrl: './login.component.html',
+  styleUrls: ['./login.component.css'],
+  providers: [MessageService]
+})
+export class LoginComponent implements OnInit {
+  infoLogin: ILogin = {
+    email: '',
+    password: ''
+  };
+
+  constructor(
+    private router: Router,
+    private appService: AppService,
+    private messageService: MessageService,
+    private authGuard: AuthGuard
+  ) {}
+
+  ngOnInit() {
+    if (this.authGuard.isLoggedIn()) {
+      this.router.navigateByUrl('almacen/categorias');
+    }
+  }
+
+  login() {
+    this.appService.login(this.infoLogin).subscribe({
+      next: (data) => {
+        // const infoUser: ILoginResponse = {
+        //   email: data.email,
+        //   token: data.token
+        // };
+        sessionStorage.setItem('usuario', JSON.stringify(data));
+        //  this.router.navigateByUrl('almacen');
+        this.router.navigate([`/almacen`], { replaceUrl: true });
+      },
+      error: (err) => {
+        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Credenciales erróneas' });
+      }
+    });
+  }
+}
+
+
+login.component.css
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  display: -ms-flexbox;
+  display: flex;
+  -ms-flex-align: center;
+  align-items: center;
+  padding-top: 40px;
+  padding-bottom: 40px;
+  background-color: #f5f5f5;
+}
+
+.form-signin {
+  width: 100%;
+  max-width: 330px;
+  padding: 15px;
+  margin: auto;
+}
+.form-signin .checkbox {
+  font-weight: 400;
+}
+.form-signin .form-control {
+  position: relative;
+  box-sizing: border-box;
+  height: auto;
+  padding: 10px;
+  font-size: 16px;
+}
+.form-signin .form-control:focus {
+  z-index: 2;
+}
+.form-signin input[type='email'] {
+  margin-bottom: -1px;
+  border-bottom-right-radius: 0;
+  border-bottom-left-radius: 0;
+}
+.form-signin input[type='password'] {
+  margin-bottom: 10px;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+app.module.ts
+Incluir InicioModule en sección imports
+
+Desarrollamos el guard par controlar los accesos
+
+auth-guard.service.ts 
+
+import { Injectable } from '@angular/core';
+import { Router } from '@angular/router';
+import { ILoginResponse } from '../interfaces/login.interface';
+
+@Injectable({
+  providedIn: 'root'
+})
+export class AuthGuard {
+  constructor(private router: Router) {}
+
+  isLoggedIn() {
+    const user = localStorage.getItem('usuario');
+    if (user) {
+      return true;
+    }
+
+    this.router.navigate(['login']);
+    return false;
+  }
+
+  getUser(): string {
+    const infoUser = localStorage.getItem('usuario');
+    if (infoUser) {
+      const userInfo: ILoginResponse = JSON.parse(infoUser);
+      return userInfo.email;
+    }
+    return '';
+  }
+
+  getToken(): string {
+    const infoUser = localStorage.getItem('usuario');
+    if (infoUser) {
+      const userInfo: ILoginResponse = JSON.parse(infoUser);
+      return userInfo.token;
+    }
+    return '';
+  }
+}
+
+Implementampos el guard en el sistema de rutas para impedir accesos no autorizados
+
+app-routing.module.ts
+
+import { NgModule, inject } from '@angular/core';
+import { Routes, RouterModule } from '@angular/router';
+import { LoginComponent } from './inicio/login/login.component';
+import { NotFoundComponent } from './inicio/not-found/not-found.component';
+import { AuthGuard } from './guards/auth-guard.service';
+
+export const canActivate = (authGuard = inject(AuthGuard)) => authGuard.isLoggedIn();
+
+const appRoutes: Routes = [
+  { path: '', redirectTo: '/login', pathMatch: 'full' },
+  { path: 'login', component: LoginComponent },
+  {
+    path: 'almacen',
+    loadChildren: () => import('./almacen/almacen.module').then((m) => m.AlmacenModule),
+    canActivate: [() => canActivate()]
+  },
+  { path: '**', component: NotFoundComponent }
+];
+
+@NgModule({
+  imports: [RouterModule.forRoot(appRoutes)],
+  exports: [RouterModule]
+})
+export class AppRoutingModule {}
+
+
+Creamos nuevo módulo Shared para el navbar
+
+ng g m shared
+ng g c shared/navbar --skip-tests=true
+
+navbar.component.html 
+
+<nav class="navbar navbar-expand-lg navbar-light bg-light">
+  <div class="container-fluid">
+    <a class="navbar-brand" routerLink="categorias">Almacén</a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent"
+      aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+      <ul class="navbar-nav me-auto my-2 my-lg-0 navbar-nav-scroll" style="--bs-scroll-height: 100px;">
+        <li class="nav-item active">
+          <a class="nav-link" routerLink="/almacen/categorias" routerLinkActive="active">Categorías</a>
+        </li>
+        <li class="nav-item active">
+          <a class="nav-link" routerLink="/almacen/productos" routerLinkActive="active">Productos</a>
+        </li>
+      </ul>
+      <div class="d-flex">
+        <p class="me-2 mt-2">Bienvenido, <b>{{userName}}</b></p>
+        <button class="btn btn-outline-success" type="button" (click)="cerrarSesion()">Cerrar sesión</button>
+      </div>
+    </div>
+  </div>
+</nav>
+
+
+navbar.component.ts
+
+import { Component } from '@angular/core';
+import { Router } from '@angular/router';
+import { AuthGuard } from 'src/app/guards/auth-guard.service';
+
+@Component({
+  selector: 'app-navbar',
+  templateUrl: './navbar.component.html',
+  styleUrls: ['./navbar.component.css']
+})
+export class NavbarComponent {
+  userName = '';
+  constructor(private authGuard: AuthGuard, private router: Router) {}
+
+  ngOnInit(): void {
+    this.userName = this.authGuard.getUser();
+  }
+
+  cerrarSesion() {
+    localStorage.removeItem('usuario');
+    this.router.navigateByUrl('/login');
+  }
+}
+
+Incluimos el navbar en el almacén
+almacen.component.html
+
+En el módulo shared exportamos el navbar para poder utilizar este componente en almaén
+
+shared.module.ts
+
+import { NgModule } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { NavbarComponent } from './navbar/navbar.component';
+import { RouterModule } from '@angular/router';
+
+@NgModule({
+  declarations: [NavbarComponent],
+  imports: [CommonModule, RouterModule],
+  exports: [NavbarComponent]
+})
+export class SharedModule {}
+
+En el módulo de almacen incluimos el sharedmodule
+
+almacen.module.ts
+
+import { NgModule } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { AlmacenComponent } from './almacen.component';
+import { CategoriasComponent } from './categorias/categorias.component';
+import { ProductosComponent } from './productos/productos.component';
+import { AlmacenRoutingModule } from './almacen-routing.module';
+import { AlmacenService } from './almacen.service';
+import { SharedModule } from '../shared/shared.module';
+
+
+@NgModule({
+  declarations: [
+    AlmacenComponent,
+    CategoriasComponent,
+    ProductosComponent
+  ],
+  imports: [
+    CommonModule,
+    AlmacenRoutingModule,
+    SharedModule
+  ],
+  providers:[AlmacenService]
+})
+export class AlmacenModule { }
+
+En el componente login hacemos mejoras para no dejar iniciar sesión a un usuario que ya tenga sesión iniciada
+
+login.component.ts
+
+import { Component, OnInit } from '@angular/core';
+import { Router } from '@angular/router';
+import { MessageService } from 'primeng/api';
+import { AuthGuard } from 'src/app/guards/auth-guard.service';
+import { ILogin, ILoginResponse } from 'src/app/interfaces/login.interface';
+import { AppService } from 'src/app/services/app.service';
+
+@Component({
+  selector: 'app-login',
+  templateUrl: './login.component.html',
+  styleUrls: ['./login.component.css'],
+  providers: [MessageService]
+})
+export class LoginComponent implements OnInit {
+  infoLogin: ILogin = {
+    email: '',
+    password: ''
+  };
+
+  constructor(
+    private router: Router,
+    private appService: AppService,
+    private messageService: MessageService,
+    private authGuard: AuthGuard
+  ) {}
+
+  ngOnInit() {
+    if (this.authGuard.isLoggedIn()) {
+      this.router.navigateByUrl('almacen/categorias');
+    }
+  }
+
+  login() {
+    this.appService.login(this.infoLogin).subscribe({
+      next: (data) => {
+        // const infoUser: ILoginResponse = {
+        //   email: data.email,
+        //   token: data.token
+        // };
+        localStorage.setItem('usuario', JSON.stringify(data));
+        //  this.router.navigateByUrl('almacen');
+        this.router.navigate([`/almacen`], { replaceUrl: true });
+      },
+      error: (err) => {
+        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Credenciales erróneas' });
+      }
+    });
+  }
+}
