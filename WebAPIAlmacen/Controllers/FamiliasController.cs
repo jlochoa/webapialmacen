@@ -27,8 +27,19 @@ namespace WebAPIAlmacen.Controllers
         }
 
         [HttpGet]
+        public async Task<ActionResult> GetFamiliasAngular()
+        {
+            var familias = await (from x in context.Familias
+                                  select new DTOFamilia
+                                  {
+                                      Id = x.Id,
+                                      Nombre = x.Nombre
+                                  }).ToListAsync();
+            return Ok(familias);
+        }
+
         // No podemos tener dos get con la misma ruta
-        [HttpGet] // api/familias
+        [HttpGet("basica")] // api/familias
                   // [HttpGet("listadofamilias")] // api/familias/listadofamilias
                   //  [HttpGet("/listadofamilias")] // listadofamilias
         public async Task<IEnumerable<Familia>> GetFamilias()

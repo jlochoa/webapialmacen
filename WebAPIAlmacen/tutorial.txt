@@ -1070,3 +1070,270 @@ export class LoginComponent implements OnInit {
     });
   }
 }
+
+Creamos el archivo almacen.interface.ts
+
+export interface IFamilia {
+  id: number;
+  nombre: string;
+}
+
+
+
+Desarrollamos el servicio de almacen
+
+import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { Injectable } from '@angular/core';
+import { Observable } from 'rxjs';
+import { AuthGuard } from '../guards/auth-guard.service';
+import { environment } from 'src/environments/environment';
+import { IFamilia } from './almacen.interfaces';
+
+@Injectable({
+  providedIn: 'root'
+})
+export class AlmacenService {
+  urlAPI = environment.urlAPI;
+  constructor(private http: HttpClient, private authGuard: AuthGuard) {}
+
+  getFamilias(): Observable<IFamilia[]> {
+    const headers = this.getHeaders();
+    return this.http.get<IFamilia[]>(`${this.urlAPI}familias`, { headers });
+  }
+
+  addFamilia(familia: IFamilia): Observable<IFamilia> {
+    const headers = this.getHeaders();
+    return this.http.post<IFamilia>(`${this.urlAPI}familias`, familia, { headers });
+  }
+
+  updateFamilia(familia: IFamilia): Observable<IFamilia> {
+    const headers = this.getHeaders();
+    return this.http.put<IFamilia>(`${this.urlAPI}familias`, familia, {
+      headers
+    });
+  }
+
+  deleteFamilia(id: number): Observable<IFamilia> {
+    const headers = this.getHeaders();
+    return this.http.delete<IFamilia>(`${this.urlAPI}familias/${id}`, {
+      headers
+    });
+  }
+
+  getHeaders(): HttpHeaders {
+    const token = this.authGuard.getToken();
+    const headers = new HttpHeaders({
+      Authorization: `Bearer ${token}`
+    });
+    return headers;
+  }
+}
+
+
+
+Modificamos el módulo de almacén con los módulos de Primeng y el módulo de formularios de Angular
+
+import { NgModule } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import { DialogModule } from 'primeng/dialog';
+import { TableModule } from 'primeng/table';
+import { ButtonModule } from 'primeng/button';
+import { ConfirmDialogModule } from 'primeng/confirmdialog';
+import { AlmacenComponent } from './almacen.component';
+import { CategoriasComponent } from './categorias/categorias.component';
+import { ProductosComponent } from './productos/productos.component';
+import { AlmacenRoutingModule } from './almacen-routing.module';
+import { AlmacenService } from './almacen.service';
+import { SharedModule } from '../shared/shared.module';
+
+@NgModule({
+  declarations: [AlmacenComponent, CategoriasComponent, ProductosComponent],
+  imports: [
+    SharedModule,
+    CommonModule,
+    AlmacenRoutingModule,
+    FormsModule,
+    DialogModule,
+    TableModule,
+    ButtonModule,
+    ConfirmDialogModule
+  ],
+  providers: [AlmacenService]
+})
+export class AlmacenModule {}
+
+
+Seguimos con el componente de categorias
+
+categorias.component.html
+
+<div class="row mt-4">
+    <div class="col-4">
+      <h1>Agregar categoría</h1>
+      <form #formulario="ngForm" (submit)="guardar()">
+          <div class="form-group">
+          <label for="nombre">Nombre</label>
+          <input type="text" class="form-control" name="nombre" [(ngModel)]="familia.nombre" required #nombre="ngModel"
+            id="nombre" placeholder="Nombre obligatorio" />
+          <span class="form-text text-danger" *ngIf="!nombre.valid && nombre.touched">
+            Nombre obligatorio
+          </span>
+        </div>
+        <button type="submit" class="btn btn-primary" [disabled]="formulario.invalid">
+          Aceptar
+        </button>
+        <button type="button" class="btn btn-warning" *ngIf="familia.id!==0" (click)="cancelarEdicion()">
+          Cancelar edición
+        </button>
+      </form>
+    </div>
+    <div class="col-8">
+      <p-table [value]="familias" [paginator]="true" [rows]="5" [showCurrentPageReport]="true"
+        [tableStyle]="{ 'min-width': '50rem' }"
+        currentPageReportTemplate="{first} de {last} de un total de {totalRecords} categorías"
+        [rowsPerPageOptions]="[10, 25, 50]">
+        <ng-template pTemplate="header">
+          <tr>
+            <th>Nombre</th>
+            <th></th>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="body" let-familia>
+          <tr>
+            <td>{{ familia.nombre }}</td>
+            <td><p-button icon="pi pi-pencil" (click)="edit(familia)"
+                styleClass="p-button-rounded p-button-warning"></p-button>
+              <p-button icon="pi pi-trash" (click)="confirmDelete(familia)"
+                styleClass="p-button-rounded p-button-danger"></p-button>
+            </td>
+          </tr>
+        </ng-template>
+      </p-table>
+      <p-confirmDialog></p-confirmDialog>
+      <p-dialog header="Alerta" [(visible)]="visibleError" [style]="{width: '50vw'}">
+        <p>
+          {{mensajeError}}
+        </p>
+      </p-dialog>
+    </div>
+  </div>
+
+  
+
+categorias.component.ts
+
+import { Component, OnInit, ViewChild } from '@angular/core';
+import { AlmacenService } from '../almacen.service';
+import { NgForm } from '@angular/forms';
+import { ConfirmationService } from 'primeng/api';
+import { IFamilia } from '../almacen.interfaces';
+
+@Component({
+  selector: 'app-categorias',
+  templateUrl: './categorias.component.html',
+  styleUrls: ['./categorias.component.css'],
+  providers: [ConfirmationService]
+})
+export class CategoriasComponent implements OnInit {
+  constructor(private almacenService: AlmacenService, private confirmationService: ConfirmationService) {}
+  @ViewChild('formulario') formulario!: NgForm;
+  visibleError = false;
+  mensajeError = '';
+  familias: IFamilia[] = [];
+  visibleConfirm = false;
+
+  familia: IFamilia = {
+    id: 0,
+    nombre: ''
+  };
+
+  ngOnInit(): void {
+    this.getFamilias();
+  }
+
+  getFamilias() {
+    this.almacenService.getFamilias().subscribe({
+      next: (data) => {
+        console.log(data);
+        this.visibleError = false;
+        this.familias = data;
+      },
+      error: (err) => {
+        this.visibleError = true;
+        this.mensajeError = 'Se ha producido un erro en la carga de familias';
+      }
+    });
+  }
+
+  guardar() {
+    if (this.familia.id === 0) {
+      this.almacenService.addFamilia(this.familia).subscribe({
+        next: (data) => {
+          this.visibleError = false;
+          this.formulario.reset();
+          this.getFamilias();
+        },
+        error: (err) => {
+          console.log(err);
+          this.visibleError = true;
+          this.mensajeError = err.error.msg;
+        }
+      });
+    } else {
+      this.almacenService.updateFamilia(this.familia).subscribe({
+        next: (data) => {
+          this.visibleError = false;
+          this.cancelarEdicion();
+          this.formulario.reset();
+          this.getFamilias();
+        },
+        error: (err) => {
+          this.visibleError = true;
+          this.mensajeError = err.error.msg;
+        }
+      });
+    }
+  }
+
+  edit(familia: IFamilia) {
+    this.familia = { ...familia };
+  }
+
+  cancelarEdicion() {
+    this.familia = {
+      id: 0,
+      nombre: ''
+    };
+  }
+
+  confirmDelete(familia: IFamilia) {
+    this.confirmationService.confirm({
+      message: `Eliminar la categoría ${familia.nombre}?`,
+      header: 'Estás seguro?',
+      icon: 'pi pi-exclamation-triangle',
+      acceptLabel: 'Sí',
+      acceptButtonStyleClass: 'p-button-danger',
+      accept: () => this.deleteFamilia(familia.id)
+    });
+  }
+
+  deleteFamilia(id: number) {
+    this.almacenService.deleteFamilia(id).subscribe({
+      next: (data) => {
+        this.visibleError = false;
+        this.formulario.reset({
+          nombre: ''
+        });
+        this.getFamilias();
+      },
+      error: (err) => {
+        this.visibleError = true;
+        this.mensajeError = 'Se ha producido un error';
+      }
+    });
+  }
+}
+
+
+

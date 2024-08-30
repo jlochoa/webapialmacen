@@ -1,1 +1,50 @@
-<p>categorias works!</p>
+<div class="row mt-4">
+    <div class="col-4">
+      <h1>Agregar categoría</h1>
+      <form #formulario="ngForm" (submit)="guardar()">
+          <div class="form-group">
+          <label for="nombre">Nombre</label>
+          <input type="text" class="form-control" name="nombre" [(ngModel)]="familia.nombre" required #nombre="ngModel"
+            id="nombre" placeholder="Nombre obligatorio" />
+          <span class="form-text text-danger" *ngIf="!nombre.valid && nombre.touched">
+            Nombre obligatorio
+          </span>
+        </div>
+        <button type="submit" class="btn btn-primary" [disabled]="formulario.invalid">
+          Aceptar
+        </button>
+        <button type="button" class="btn btn-warning" *ngIf="familia.id!==0" (click)="cancelarEdicion()">
+          Cancelar edición
+        </button>
+      </form>
+    </div>
+    <div class="col-8">
+      <p-table [value]="familias" [paginator]="true" [rows]="5" [showCurrentPageReport]="true"
+        [tableStyle]="{ 'min-width': '50rem' }"
+        currentPageReportTemplate="{first} de {last} de un total de {totalRecords} categorías"
+        [rowsPerPageOptions]="[10, 25, 50]">
+        <ng-template pTemplate="header">
+          <tr>
+            <th>Nombre</th>
+            <th></th>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="body" let-familia>
+          <tr>
+            <td>{{ familia.nombre }}</td>
+            <td><p-button icon="pi pi-pencil" (click)="edit(familia)"
+                styleClass="p-button-rounded p-button-warning"></p-button>
+              <p-button icon="pi pi-trash" (click)="confirmDelete(familia)"
+                styleClass="p-button-rounded p-button-danger"></p-button>
+            </td>
+          </tr>
+        </ng-template>
+      </p-table>
+      <p-confirmDialog></p-confirmDialog>
+      <p-dialog header="Alerta" [(visible)]="visibleError" [style]="{width: '50vw'}">
+        <p>
+          {{mensajeError}}
+        </p>
+      </p-dialog>
+    </div>
+  </div>
