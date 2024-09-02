@@ -26,8 +26,25 @@ namespace WebAPIAlmacen.Controllers
         }
 
         [HttpGet]
-        [AllowAnonymous]
         public async Task<ActionResult> GetProductos()
+        {
+            var productos = await context.Productos.Select(x => new DTOProducto
+            {
+                Id = x.Id,
+                Nombre = x.Nombre,
+                Precio = x.Precio,
+                Descatalogado = x.Descatalogado,
+                FotoUrl = x.FotoUrl,
+                FamiliaId = x.FamiliaId,
+                Familia = x.Familia.Nombre
+            }).ToListAsync();
+
+            return Ok(productos);
+        }
+
+        [HttpGet("basica")]
+        [AllowAnonymous]
+        public async Task<ActionResult> GetProductosBasica()
         {
             var productos = await context.Productos.ToListAsync();
             await operacionesService.AddOperacion("Get", "Productos");

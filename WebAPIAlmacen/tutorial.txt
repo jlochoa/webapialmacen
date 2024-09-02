@@ -1336,4 +1336,292 @@ export class CategoriasComponent implements OnInit {
 }
 
 
+Productos
+
+Creamos la clase DTOProducto
+
+    public class DTOProducto
+    {
+        public int Id { get; set; }
+        public string Nombre { get; set; } = null!;
+        public decimal Precio { get; set; }
+        public bool Descatalogado { get; set; }
+        public string? FotoUrl { get; set; }
+        public int FamiliaId { get; set; }
+        public string Familia { get; set; }
+    }
+
+A continuación, agregamos la get de productos en el controller de productos
+
+[HttpGet]
+  public async Task<ActionResult> GetProductos()
+  {
+      var productos = await _context.Productos.Select(x => new DTOProducto
+      {
+          Id = x.Id,
+          Nombre = x.Nombre,
+          Precio = x.Precio,
+          Descatalogado = x.Descatalogado,
+          FotoUrl = x.FotoUrl,
+          FamiliaId = x.FamiliaId,
+          Familia = x.Familia.Nombre
+      }).ToListAsync();
+
+      return Ok(productos);
+  }
+
+  Proyecto Angular
+  En almacen.interface.ts agregamos la interface de productos
+
+  export interface IProducto {
+  id: number;
+  nombre: string;
+  precio: number;
+  descatalogado: boolean;
+  foto?: File | null;
+  fotoUrl?: string;
+  familiaId: number | null;
+  familia?: { nombre: string };
+}
+
+En almacen.service.ts, agregamos las peticiones para productos
+
+  getProductos(): Observable<IProducto[]> {
+    const headers = this.getHeaders();
+    return this.http.get<IProducto[]>(`${this.urlAPI}Productos`, { headers });
+  }
+
+  addProducto(producto: IProducto): Observable<IProducto> {
+    const headers = this.getHeaders();
+    const formData = new FormData();
+    formData.append('nombre', producto.nombre);
+    formData.append('precio', producto.precio.toString());
+    formData.append('familiaId', producto.familiaId?.toString()!);
+    formData.append('descatalogado', producto.descatalogado ? 'true' : 'false');
+    formData.append('foto', producto.foto!);
+
+    return this.http.post<IProducto>(`${this.urlAPI}Productos`, formData, { headers });
+  }
+
+  deleteProducto(id: number): Observable<IProducto> {
+    const headers = this.getHeaders();
+    return this.http.delete<IProducto>(`${this.urlAPI}Productos/${id}`, {
+      headers
+    });
+  }
+
+  Desarrollamos el componente productos
+
+  productos.component.ts
+
+  import { Component, OnInit, ViewChild } from '@angular/core';
+import { AlmacenService } from '../almacen.service';
+import { ConfirmationService } from 'primeng/api';
+import { NgForm } from '@angular/forms';
+import { IFamilia, IProducto } from '../almacen.interfaces';
+
+@Component({
+  selector: 'app-productos',
+  templateUrl: './productos.component.html',
+  styleUrls: ['./productos.component.css'],
+  providers: [ConfirmationService]
+})
+export class ProductosComponent implements OnInit {
+  constructor(private almacenService: AlmacenService, private confirmationService: ConfirmationService) {}
+  @ViewChild('formulario') formulario!: NgForm;
+  visibleError = false;
+  mensajeError = '';
+  productos: IProducto[] = [];
+  categorias: IFamilia[] = [];
+  visibleConfirm = false;
+  urlImagen = '';
+  visibleFoto = false;
+  foto = '';
+
+  producto: IProducto = {
+    id: 0,
+    nombre: '',
+    precio: 0,
+    foto: null,
+    descatalogado: false,
+    familiaId: null
+  };
+
+  ngOnInit(): void {
+    this.getCategorias();
+    this.getProductos();
+  }
+
+  getCategorias() {
+    this.almacenService.getFamilias().subscribe({
+      next: (data) => {
+        this.visibleError = false;
+        this.categorias = data;
+      },
+      error: (err) => {
+        this.visibleError = true;
+        this.mensajeError = 'Se ha producido un erro en la carga de familias';
+      }
+    });
+  }
+
+  getProductos() {
+    this.almacenService.getProductos().subscribe({
+      next: (data) => {
+        this.visibleError = false;
+        this.productos = data;
+        console.log(this.productos);
+      },
+      error: (err) => {
+        this.visibleError = true;
+        this.mensajeError = 'Se ha producido un erro en la carga de productos';
+      }
+    });
+  }
+
+  onChange(event: any) {
+    const file = event.target.files;
+
+    if (file) {
+      this.producto.foto = file[0];
+    }
+  }
+
+  showImage(producto: IProducto) {
+    this.foto = producto.fotoUrl!;
+    this.visibleFoto = true;
+  }
+
+  guardar() {
+    this.almacenService.addProducto(this.producto).subscribe({
+      next: (data: any) => {
+        this.visibleError = false;
+        this.formulario.reset();
+        this.getProductos();
+      },
+      error: (err: any) => {
+        this.visibleError = true;
+        this.mensajeError = err.error.msg;
+      }
+    });
+  }
+
+  confirmDelete(producto: IProducto) {
+    this.confirmationService.confirm({
+      message: `Eliminar el producto ${producto.nombre}?`,
+      header: 'Estás seguro?',
+      icon: 'pi pi-exclamation-triangle',
+      acceptLabel: 'Sí´',
+      acceptButtonStyleClass: 'p-button-danger',
+      accept: () => this.deleteProducto(producto.id)
+    });
+  }
+
+  deleteProducto(id: number) {
+    this.almacenService.deleteProducto(id).subscribe({
+      next: (data: IProducto) => {
+        this.visibleError = false;
+        this.getProductos();
+      },
+      error: (err: any) => {
+        this.visibleError = true;
+        this.mensajeError = err.error.msg;
+      }
+    });
+  }
+}
+
+
+  productos.component.html
+
+  <div class="row mt-4">
+  <div class="col-4">
+    <h1>Agregar producto</h1>
+    <form #formulario="ngForm" (submit)="guardar()">
+      <div class="form-group">
+        <label for="descripcion">Descripción</label>
+        <input type="text" class="form-control" name="descripcion" [(ngModel)]="producto.nombre" required
+          id="descripcion" #descripcion="ngModel" placeholder="Descripción obligatoria" />
+        <span class="form-text text-danger" *ngIf="!descripcion.valid && descripcion.touched">
+          Descripción obligatoria
+        </span>
+      </div>
+      <div class="form-group">
+        <label for="precio">Precio</label>
+        <input type="number" class="form-control" name="precio" [(ngModel)]="producto.precio" required min="0"
+          id="precio" #precio="ngModel" placeholder="Precio obligatorio" />
+        <span class="form-text text-danger" *ngIf="!precio.valid && precio.touched">
+          Precio obligatorio
+        </span>
+      </div>
+      <div class="form-check">
+        <input class="form-check-input" type="checkbox" [(ngModel)]="producto.descatalogado" id="descatalogado"
+          name="descatalogado">
+        <label class="form-check-label" for="descatalogado">
+          Descatalogado
+        </label>
+      </div>
+      <div class="form-group">
+        <label for="categoria">Categoría</label>
+        <select class="form-select" [(ngModel)]="producto.familiaId" name="categoria" required Id="categoria">
+          <option value="null">Selecciona una categoría</option>
+          <option *ngFor="let categoria of categorias" [value]="categoria.id">{{categoria.nombre}}
+          </option>
+        </select>
+      </div>
+      <div class="mt-3">
+        <label for="imagen" class="form-label">Elegir imagen</label>
+        <input class="form-control" type="file" id="imagen" (change)="onChange($event)" accept="image/*" />
+      </div>
+      <button type="submit" class="btn btn-primary" [disabled]="formulario.invalid">
+        Aceptar
+      </button>
+    </form>
+  </div>
+  <div class="col-8">
+    <p-table [value]="productos" [paginator]="true" [rows]="5" [showCurrentPageReport]="true"
+      [tableStyle]="{ 'min-width': '50rem' }"
+      currentPageReportTemplate="{first} de {last} de un total de {totalRecords} productos"
+      [rowsPerPageOptions]="[10, 25, 50]">
+      <ng-template pTemplate="header">
+        <tr>
+          <th>Nombre</th>
+          <th>Precio</th>
+          <th>Descatalogado</th>
+          <th>Categoría</th>
+          <th></th>
+        </tr>
+      </ng-template>
+      <ng-template pTemplate="body" let-producto>
+        <tr>
+          <td>{{ producto.nombre }}</td>
+          <td>{{ producto.precio | number : '1.2-2' }} €</td>
+          <td>{{ producto.Descatalogado ?'Sí':'No' }}</td>
+          <td>{{ producto.familia }}</td>
+          <td>
+            <p-button icon="pi pi-trash" (click)="confirmDelete(producto)"
+              styleClass="p-button-rounded p-button-danger"></p-button>
+            <p-button icon="pi pi-eye" (click)="showImage(producto)"
+              styleClass="p-button-rounded p-button-primary"></p-button>
+          </td>
+        </tr>
+      </ng-template>
+    </p-table>
+    <p-confirmDialog></p-confirmDialog>
+    <p-dialog header="Alerta" [(visible)]="visibleError" [style]="{width: '50vw'}">
+      <p>
+        {{mensajeError}}
+      </p>
+    </p-dialog>
+    <p-dialog header="Foto" [(visible)]="visibleFoto" [style]="{width: '50vw'}">
+     <img [src]="foto" alt="Foto del producto" class="img-fluid">
+    </p-dialog>
+  </div>
+</div>
+
+
+  Agregamos en program el middleware para ver archivos estáticos para poder así tener acceso a las imágenes
+
+  app.UseStaticFiles();
+
 

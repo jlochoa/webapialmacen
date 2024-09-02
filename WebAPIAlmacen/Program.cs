@@ -117,6 +117,8 @@ app.UseHttpsRedirection();
 app.UseCors();
 app.UseAuthorization();
 app.UseMiddleware<GestionYRegistroMiddleware>();
+
+app.UseStaticFiles();
 app.MapControllers();
 
 app.Run();

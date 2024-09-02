@@ -67,3 +67,15 @@
 ::1 - /api/familias
 ::1 - /api/familias/3
 ::1 - /api/familias
+::1 - /api/usuarios/login
+::1 - /api/familias
+::1 - /api/familias
+::1 - /api/Productos
+::1 - /api/Productos
+::1 - /api/Productos
+::1 - /imagenes/83d3fa58-c040-44e2-8710-a479789534fb.png
+::1 - /api/Productos
+::1 - /imagenes/83d3fa58-c040-44e2-8710-a479789534fb.png
+::1 - /api/Productos/8
+::1 - /api/Productos
+::1 - /api/familias
