@@ -1,0 +1,188 @@
+Creamos la aplicación Angular para test
+
+ng new testing
+
+Damos sentido con comentarios al test que aparece por defecto en el componente app.component
+
+app.component.spec.ts
+
+import { TestBed } from '@angular/core/testing';
+import { AppComponent } from './app.component';
+
+// describe marca el comienzo de la prueba. 'AppComponent' es el título de la prueba
+describe('AppComponent', () => {
+  // TestBed onfigura e inicializa el entorno para pruebas unitarias y proporciona métodos para crear componentes y servicios en pruebas unitarias.
+  // El método TestBed.configureTestingModule() crea el módulo de pruebas con los componentes que va a probar
+  beforeEach(() =>
+    TestBed.configureTestingModule({
+      declarations: [AppComponent]
+    })
+  );
+
+  // Cada it es una prueb unitaria. 'should create the app' es el nombre de la prueba
+  it('should create the app', () => {
+    // fixture es la pieza (componente) que se va a probar
+    const fixture = TestBed.createComponent(AppComponent);
+    const app = fixture.componentInstance;
+    // Se expera (expect) que el componente (app-->AppComponent) se haya creado toBeTruthy
+    expect(app).toBeTruthy();
+  });
+
+  it(`should have as title 'pruebas'`, () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    const app = fixture.componentInstance;
+    // Se expera (expect) que el componente (app-->AppComponent) tenga una propiedad titulo con el valor 'pruebas'
+    expect(app.title).toEqual('pruebas');
+  });
+
+  it('should render title', () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    // Se activa el detector de cambios
+    fixture.detectChanges();
+    const compiled = fixture.nativeElement as HTMLElement;
+    // Se expera (expect) que en el componente (app-->AppComponent) haya un elemento de cclase content span con el valor 'pruebas app is running!
+    expect(compiled.querySelector('.content span')?.textContent).toContain('pruebas app is running!');
+  });
+});
+
+ng test
+
+TEST UNITARIOS SENCILLOS
+
+Creamos carpeta basicas. Dentro de basicas creamos la carpeta string. Dentro de string, creamos string.ts y string.spec.ts
+
+
+string.ts 
+
+export function mensaje(nombre: string) {
+  return `Saludos ${nombre}`;
+  // return true;
+}
+
+string.spec.ts
+
+import { mensaje } from './string';
+
+// describe agrupa pruebas,
+// El primer argumento es el nombre del grupo y el segundo la función que agrupa las pruebas
+describe('Pruebas de strings', () => {
+  // El primer argumento es el nombre de la prueba y el segundo la función que efectua la prueba
+  it('Debe de retornar un string', () => {
+    // La prueba espera (expect) sea (toBe) un string
+    const resp = mensaje('Juan Luis');
+    expect(typeof resp).toBe('string');
+  });
+
+  it('Debe de retornar un saludo con el nombre enviado', () => {
+    const nombre = 'Juan Luis';
+    const resp = mensaje(nombre);
+
+    expect(resp).toContain(nombre);
+  });
+});
+
+
+Creamos la carpeta numeros dentro de basicas. Dentro de numeros, creamos numeros.ts y numeros.spec.ts
+
+numeros.ts
+
+export function incrementar(numero: number) {
+  if (numero > 100) {
+    return 100;
+  } else {
+    return numero + 1;
+  }
+}
+
+numeros.spec.ts
+
+import { incrementar } from './numeros';
+
+describe('Pruebas de números', () => {
+  it('Debe de retornar 100 si el número ingresado es mayor a 100', () => {
+    const res = incrementar(300);
+    expect(res).toBe(100);
+  });
+
+  it('Debe de retornar el número ingresado + 1 si no es mayor a 100', () => {
+    const res = incrementar(50);
+    expect(res).toBe(51);
+  });
+});
+
+Creamos la carpeta clase dentro de basicas. Dentro de clase, creamos clase.ts y clase.spec.ts
+
+clase.ts
+
+export class Jugador {
+  puntos: number;
+
+  constructor() {
+    this.puntos = 100;
+  }
+
+  restarPuntos(puntos: number) {
+    if (puntos >= this.puntos) {
+      this.puntos = 0;
+    } else {
+      this.puntos = this.puntos - puntos;
+    }
+
+    return this.puntos;
+  }
+}
+
+clase.spec.ts
+
+import { Jugador } from './clase';
+
+describe('Pruebas de clase', () => {
+  let jugador: Jugador;
+
+  // Ciclo de vida de las pruebas
+  // Al iniciar las pruebas
+  beforeAll(() => {
+    console.warn('BeforeAll');
+    // jugador.puntos = 100;
+  });
+
+  // Al principio de cada prueba
+  beforeEach(() => {
+    // console.warn('BeforeEach');
+    // jugador.puntos = 100;
+    jugador = new Jugador();
+  });
+
+  // Después de todas las pruebas
+  afterAll(() => {
+    // console.warn('AfterAll');
+  });
+
+  // Después de cada prueba
+  afterEach(() => {
+    // console.warn('AfterEach');
+    // jugador.puntos = 100;
+  });
+
+  it('Debe de retornar 80 puntos si se restan 20', () => {
+    // const jugador = new Jugador();
+    const resp = jugador.restarPuntos(20);
+
+    expect(resp).toBe(80);
+  });
+
+  it('Debe de retornar 50 puntos si se restan 50', () => {
+    // const jugador = new Jugador();
+    const resp = jugador.restarPuntos(50);
+
+    expect(resp).toBe(50);
+  });
+
+  it('Debe de retornar 0 puntos si se restan 100 o más', () => {
+    // const jugador = new Jugador();
+    const resp = jugador.restarPuntos(100);
+
+    expect(resp).toBe(0);
+  });
+});
+
