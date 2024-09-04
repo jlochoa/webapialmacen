@@ -13,16 +13,17 @@ namespace WebAPIAlmacen.Controllers
     [Authorize]
     public class ProductosController : ControllerBase
     {
-
         private readonly MiAlmacenContext context;
         private readonly OperacionesService operacionesService;
         private readonly IGestorArchivos gestorArchivosLocal;
+        private readonly CalculosService calculosService;
 
-        public ProductosController(MiAlmacenContext context,OperacionesService operacionesService, IGestorArchivos gestorArchivosLocal)
+        public ProductosController(MiAlmacenContext context,OperacionesService operacionesService, IGestorArchivos gestorArchivosLocal, CalculosService calculosService)
         {
             this.context = context;
             this.operacionesService = operacionesService;
             this.gestorArchivosLocal = gestorArchivosLocal;
+            this.calculosService = calculosService;
         }
 
         [HttpGet]

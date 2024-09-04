@@ -58,6 +58,7 @@ builder.Services.AddTransient<IGestorArchivos, GestorArchivosLocal>();
 //builder.Services.AddHostedService<TareaProgramadaService>();
 builder.Services.AddDataProtection();
 builder.Services.AddTransient<HashService>();
+builder.Services.AddTransient<CalculosService>();
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                .AddJwtBearer(options => options.TokenValidationParameters = new TokenValidationParameters

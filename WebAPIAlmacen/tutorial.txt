@@ -1624,4 +1624,187 @@ export class ProductosComponent implements OnInit {
 
   app.UseStaticFiles();
 
+  NUEVO SERVICIO PARA TESTING
+
+  En la carpeta services, creamos la clase CalculosService
+  CalculosService.cs
+
+   public class CalculosService
+    {
+        public decimal CalculoIVA(decimal importe, bool reducido)
+        {
+            if (reducido)
+            {
+                return importe * 0.10m;
+            }
+            else
+            {
+                return importe * 0.21m; ;
+            }
+        }
+    }
+
+Registramos el servicio en el Program
+
+builder.Services.AddTransient<CalculosService>();
+
+Aumentar la inyección de dependencia en el controller de Productos para usar el nuevo servicio
+
+
+        private readonly MiAlmacenContext context;
+        private readonly OperacionesService operacionesService;
+        private readonly IGestorArchivos gestorArchivosLocal;
+        private readonly CalculosService calculosService;
+
+        public ProductosController(MiAlmacenContext context,OperacionesService operacionesService, IGestorArchivos gestorArchivosLocal, CalculosService calculosService)
+        {
+            this.context = context;
+            this.operacionesService = operacionesService;
+            this.gestorArchivosLocal = gestorArchivosLocal;
+            this.calculosService = calculosService;
+        }
+
+Agregar un get para probar el servicio (agregar a ProductosController)
+
+ // Get para calcular el iva mediante CalculosService que
+ // irá testeado en un proyecto de testing
+ [HttpGet("iva/{id}/{reducido}")] 
+ public async Task<ActionResult> GetProductoIVA(int id, bool reducido)
+ {
+     var producto = await context.Productos.FindAsync(id);
+     var iva = calculosService.CalculoIVA(producto.Precio, reducido);
+     return Ok(iva);
+ }
+
+ Agregamos a la solución un nuevo proyecto de tipo MSTest llamado WebAPIAlmacen.Tests
+ Borramos la clase de prueba que se crea de forma automática.
+ Agregamos una referencia al proyecto WebAPIAlmacen
+ Creamos la carpeta Services y dentro creamos la clase CalculosServiceTests
+
+ CalculosServiceTests.cs
+
+     [TestClass]
+    public class CalculosServiceTests
+    {
+        [TestMethod]
+        public void IvaReducidoCalculaBien()
+        {
+            // Preparación
+            var ivaService = new CalculosService();
+
+            // Ejecución
+            var iva = ivaService.CalculoIVA(1000,false);
+
+            // Verificación. Assert permite hacer verificaciones
+            Assert.AreEqual(210, iva);
+        }
+
+        [TestMethod]
+        public void IvaGeneralCalculaBien()
+        {
+            // Preparación
+            var ivaService = new CalculosService();
+
+            // Ejecución
+            var iva = ivaService.CalculoIVA(1000, true);
+
+            // Verificación. Assert permite hacer verificaciones
+            Assert.AreEqual(100, iva);
+        }
+    }
+
+Desarrollamos un validador para obligar a introducir el primer carácter de un string en mayúsculas
+
+En carpeta Validators creamos la clase PrimeraMayusculaAttribute
+
+PrimeraMayusculaAttribute.cs
+
+ public class PrimeraMayusculaAttribute : ValidationAttribute
+    {
+        // value sería el valor a validar
+        protected override ValidationResult IsValid(object value, ValidationContext validationContext)
+        {
+            if (value is null)
+            {
+                return new ValidationResult("El valor no puede ser nulo");
+            }
+            var primeraLetra = value.ToString()[0].ToString();
+
+            if (primeraLetra != primeraLetra.ToUpper())
+            {
+                return new ValidationResult("La primera letra debe ser mayúscula");
+            }
+
+            return ValidationResult.Success;
+        }
+    }
+
+Aplicamos el validador al DTOFamilia
+
+   public class DTOFamilia
+    {
+        public int Id { get; set; }
+        [PrimeraMayusculaAttribute]
+        public string Nombre { get; set; }
+    }
+
+En el proyecto WebAPIAlmacen.Tests creamos la carpeta Validators
+Dentro, creamos la clase PrimeraMayusculaAttributeTests
+
+PrimeraMayusculaAttributeTests.cs
+
+ [TestClass]
+    public class PrimeraMayusculaAttributeTests
+    {
+        [TestMethod]
+        public void PrimeraLetraMinuscula_DevuelveError()
+        {
+            // Preparación
+            var primeraLetraMayuscula = new PrimeraMayusculaAttribute();
+            var valor = "juan luis";
+            var valContext = new ValidationContext(new { Nombre = valor });
+
+            // Ejecución
+            var resultado = primeraLetraMayuscula.GetValidationResult(valor, valContext);
+
+            // Verificación. Assert permite hacer verificaciones
+            Assert.AreEqual("La primera letra debe ser mayúscula", resultado.ErrorMessage);
+        }
+
+        [TestMethod]
+        public void ValorNulo_DevuelveError()
+        {
+            // Preparación
+            var primeraLetraMayuscula = new PrimeraMayusculaAttribute();
+            string valor = null;
+            var valContext = new ValidationContext(new { Nombre = valor });
+
+            // Ejecución. Si no hay errores retorna null
+            var resultado = primeraLetraMayuscula.GetValidationResult(valor, valContext);
+
+            // Verificación
+            Assert.AreEqual("El valor no puede ser nulo", resultado.ErrorMessage);
+        }
+
+        [TestMethod]
+        public void ValorConPrimeraLetraMayuscula_NoDevuelveError()
+        {
+            // Preparación
+            var primeraLetraMayuscula = new PrimeraMayusculaAttribute();
+            string valor = "Juan Luis";
+            var valContext = new ValidationContext(new { Nombre = valor });
+
+            // Ejecución
+            var resultado = primeraLetraMayuscula.GetValidationResult(valor, valContext);
+
+            // Verificación
+       	    Assert.AreEqual(ValidationResult.Success, resultado);
+        }
+    }
+
+
+
+
+
+
 
