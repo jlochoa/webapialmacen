@@ -1,0 +1,305 @@
+Creamos proyecto aplicación webapi sin swagger (Quitar marca de Habilitar comptibilidad con OpenAPI) con el nombre SignalRChat
+Eliminamos el controller demo y su clase
+Creamos carpeta wwwroot
+Creamos dentro de wwwroot index.html
+En los perfiles del launchSettings.json, cambiamos en todos:
+
+      "launchUrl": "index.html",
+
+
+Program.cs
+
+…
+
+builder.Services.AddSignalR();
+
+...
+
+app.MapHub<ChatHub>("/chatHub");  // Ruta del hub
+
+app.UseStaticFiles();
+
+
+Creamos carpeta Classes. Dentro creamos las clases Conexión y Message para dar soporte a la lista de conexiones y a la información que viene en los mensajes de chat
+
+Conexión.cs
+
+ public class Conexion
+ {
+     public string Id { get; set; }
+     public string User { get; set; }
+     public string Avatar { get; set; }
+     public string Room { get; set; }
+ }
+
+
+Message.cs
+
+    public class Message
+    {
+        public string User { get; set; }
+        public string Text { get; set; }
+        public string Avatar { get; set; }
+        public string Room { get; set; }
+    }
+
+
+Creamos carpeta Hubs. Dentro creamos las clases IChat y ChatHub
+
+IChat.cs
+
+ public interface IChat
+ {
+     Task SendMessage(Message message);
+     Task GetMessage(Message message);
+ }
+
+Chathub.cs
+
+    public class ChatHub : Hub<IChat>
+    {
+        public static List<Conexion> conexiones = new List<Conexion>();
+        // Clients son los clientes conectados al Hub. En Clients hay métodos para manejar usuarios
+        // GetMessage es un evento que debe estar registrado en el cliente
+        // Los argumentos son la información que va a ir al cliente. Pueden ir objetos 
+        public async Task SendMessage(Message message)
+        {
+            if (!string.IsNullOrEmpty(message.Text))
+            {
+                //Código para enviar a todos los usuarios de todas las salas
+                //await Clients.All.GetMessage(message);
+                await Clients.Group(message.Room).GetMessage(message);
+            }
+            else if (!string.IsNullOrEmpty(message.User))
+            {
+                conexiones.Add(new Conexion
+                {
+                    Id = Context.ConnectionId,
+                    User = message.User,
+                    Avatar = message.Avatar,
+                    Room = message.Room
+                });
+
+                //Código para enviar a todos los usuarios de todas las salas
+                //await Clients.AllExcept(Context.ConnectionId).GetMessage(new Message()
+                //{
+                //    User = message.User,
+                //    Avatar = message.Avatar,
+                //    Text = " se ha conectado!"
+                //});
+
+                // Asignar sala al usuario
+                await Groups.AddToGroupAsync(Context.ConnectionId, message.Room);
+                await Clients.GroupExcept(message.Room, Context.ConnectionId).GetMessage(new Message()
+                {
+                    User = message.User,
+                    Avatar = message.Avatar,
+                    Text = " se ha conectado!"
+                });
+            }
+        }
+
+        // Sobrescribimos (override) algunos métodos para añadirle algo más de lógica
+        public override async Task OnConnectedAsync()
+        {
+            // Cuando un usuario se conecta, se le da la bienvenida solo a ese por su id
+            await Clients.Client(Context.ConnectionId).GetMessage(new Message() { User = "Host", Text = "Hola, Bienvenido al Chat", Avatar = "https://st2.depositphotos.com/40273566/43738/v/380/depositphotos_437386202-stock-illustration-logistic-logo-design-vector-illustration.jpg" });
+
+            await base.OnConnectedAsync();
+        }
+
+        public override async Task OnDisconnectedAsync(Exception exception)
+        {
+            var conexion = conexiones.Where(x => x.Id == Context.ConnectionId).FirstOrDefault();
+            //Código para enviar a todos los usuarios de todas las salas
+            //await Clients.AllExcept(Context.ConnectionId).GetMessage(new Message() { User = "Host", Text = $"{conexion.User} ha salido del chat", Avatar = "https://st2.depositphotos.com/40273566/43738/v/380/depositphotos_437386202-stock-illustration-logistic-logo-design-vector-illustration.jpg" });
+            await Clients.GroupExcept(conexion.Room, Context.ConnectionId).GetMessage(
+                new Message()
+                {
+                    User = "Host",
+                    Text = $"{conexion.User} ha salido del chat",
+                    Avatar = "https://st2.depositphotos.com/40273566/43738/v/380/depositphotos_437386202-stock-illustration-logistic-logo-design-vector-illustration.jpg"
+                });
+
+            conexiones.Remove(conexion);
+
+            await base.OnDisconnectedAsync(exception);
+        }
+    }
+
+Para el front del chat, creamos la carpeta wwwroot. Dentro, creamos el archivo index.html, la carpeta js y dentro de la carpeta js, el archivo chat.js
+
+index.html
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Chat con SignalR</title>
+    <style>
+        img {
+            width:50px;
+            height: 50px;
+            border-radius: 50%;
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+</head>
+<body>
+    <h1>SignalR chat</h1>
+    <div class="container">
+        <div class="row">
+            <label class="col-2">Usuario</label>
+            <input class="col-4" type="text" id="txtUsuario" />
+        </div>
+        <div class="row">
+            <label class="col-2">Avatar</label>
+            <input class="col-4" type="url" id="txtAvatar" />
+        </div>
+        <div class="row">
+            <label class="col-2">Sala</label>
+            <select class="col-4" id="sala">
+                <option selected value="sala1">Sala1</option>
+                <option value="sala2">Sala2</option>
+                <option value="sala3">Sala3</option>
+            </select>
+        </div>
+        <div class="row">
+            <button type="button" class="col-2 btn btn-success" id="btnConectar" disabled>Conectar</button>
+        </div>
+        <hr />
+        <div class="row mt-4">
+            <label class="col-2">Mensaje</label>
+            <input type="text" id="txtMensaje" disabled />
+        </div>
+
+        <div class="row">
+            <button class="col-2 btn btn-primary" type="button" disabled id="btnEnviar">Enviar</button>
+        </div>
+
+    </div>
+    <div class="row">
+        <div class="col-12">
+            <hr />
+        </div>
+    </div>
+    <div class="row">
+        <ul id="lstMensajes">
+        </ul>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.14/signalr.min.js"></script>
+    <script src="./js/chat.js"></script>
+</body>
+</html>
+
+
+chat.js
+
+const conexion = new signalR.HubConnectionBuilder().withUrl("/chatHub").build();
+
+// Recibimos el mensaje del hub
+conexion.on("GetMessage", (data) => {
+    const div = document.createElement("div");
+    const imgAvatar = document.createElement("img");
+    imgAvatar.src = data.avatar;
+    imgAvatar.alt = "Avatar de " + data.user;
+    div.appendChild(imgAvatar);
+    const mensaje = document.createElement("span");
+    mensaje.textContent = data.user + " - " + data.text;
+    div.appendChild(mensaje);
+    const li = document.createElement("li");
+    li.appendChild(div);
+    document.getElementById("lstMensajes").appendChild(li);
+});
+
+// Evento de conexión
+//conexion.start().then(() => {
+//    const li = document.createElement("li");
+//    li.textContent = "Bienvenido al chat";
+//    document.getElementById("lstMensajes").appendChild(li);
+//}).catch((error) => {
+//    alert("Error de conexión");
+//    console.error(error);
+//});
+
+document.getElementById("txtUsuario").addEventListener("input", function (event) {
+    document.getElementById("btnConectar").disabled =
+        event.target.value === "" || document.getElementById("txtAvatar").value===""
+});
+
+document.getElementById("txtAvatar").addEventListener("input", function (event) {
+    document.getElementById("btnConectar").disabled =
+        event.target.value === "" || document.getElementById("txtUsuario").value === ""
+});
+
+document.getElementById("btnConectar").addEventListener("click", (event) => {
+    if (conexion.state === signalR.HubConnectionState.Disconnected) {
+        conexion.start().then(() => {
+            const li = document.createElement("li");
+            li.textContent = "Conectado con el servidor en tiempo real";
+            document.getElementById("lstMensajes").appendChild(li);
+            document.getElementById("btnConectar").textContent = "Desconectar";
+            document.getElementById("txtUsuario").disabled = true;
+            document.getElementById("txtAvatar").disabled = true;
+            document.getElementById("sala").disabled = true;
+            document.getElementById("txtMensaje").disabled = false;
+            document.getElementById("btnEnviar").disabled = false;
+
+            const usuario = document.getElementById("txtUsuario").value;
+            const avatar = document.getElementById("txtAvatar").value;
+            const sala = document.getElementById("sala").value;
+
+            const message = {
+                user: usuario,
+                avatar: avatar,
+                room:sala,
+                text: ""
+            }
+
+            conexion.invoke("SendMessage", message).catch(function (error) {
+                console.error(error);
+            });
+
+        }).catch(function (error) {
+            console.error(error);
+        });
+    }
+    else if (conexion.state === signalR.HubConnectionState.Connected) {
+        conexion.stop();
+
+        const li = document.createElement("li");
+        li.textContent = "Has salido del chat";
+        document.getElementById("lstMensajes").appendChild(li);
+        document.getElementById("btnConectar").textContent = "Conectar";
+        document.getElementById("txtUsuario").disabled = false;
+        document.getElementById("txtAvatar").disabled = false;
+        document.getElementById("sala").disabled = false;
+        document.getElementById("txtMensaje").disabled = true;
+        document.getElementById("btnEnviar").disabled = true;
+    }
+});
+
+document.getElementById("btnEnviar").addEventListener("click", (event) => {
+    const usuario = document.getElementById("txtUsuario").value;
+    const mensaje = document.getElementById("txtMensaje").value;
+    const avatar = document.getElementById("txtAvatar").value;
+    const sala = document.getElementById("sala").value;
+
+    const data = {
+        user: usuario,
+        text: mensaje,
+        avatar: avatar,
+        room:sala
+    };
+
+    // invoke nos va a comunicar con el hub y el evento para pasarle el mensaje
+    conexion.invoke("SendMessage",data).catch((error) => {
+        console.error(error);
+    });
+    document.getElementById("txtMensaje").value = "";
+    event.preventDefault(); // Para evitar el submit
+})
+
+
+
+
