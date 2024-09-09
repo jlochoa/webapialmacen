@@ -4,6 +4,7 @@ import { MessageService } from 'primeng/api';
 import { AuthGuard } from 'src/app/guards/auth-guard.service';
 import { ILogin, ILoginResponse } from 'src/app/interfaces/login.interface';
 import { AppService } from 'src/app/services/app.service';
+import { SignalrService } from 'src/app/services/signalr.service';
 
 @Component({
   selector: 'app-login',
@@ -21,7 +22,8 @@ export class LoginComponent implements OnInit {
     private router: Router,
     private appService: AppService,
     private messageService: MessageService,
-    private authGuard: AuthGuard
+    private authGuard: AuthGuard,
+    private singalRService: SignalrService
   ) {}
 
   ngOnInit() {
@@ -36,6 +38,7 @@ export class LoginComponent implements OnInit {
         console.log(data);
         localStorage.setItem('usuario', JSON.stringify(data));
         //  this.router.navigateByUrl('almacen');
+        this.singalRService.connect();
         this.router.navigate([`/almacen`], { replaceUrl: true });
       },
       error: (err) => {

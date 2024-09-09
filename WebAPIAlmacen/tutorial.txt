@@ -1803,6 +1803,392 @@ PrimeraMayusculaAttributeTests.cs
     }
 
 
+--------------------------------------------------------------------------
+AGREGAR SIGNALR EN EL PROYECTO
+--------------------------------------------------------------------------
+Creamos carpeta Hubs y dentro la clase MovimientosHub
+
+Movimientoshub.cs
+
+ public class MovimientosHub: Hub
+    {
+        public async Task SendMessage(string message)
+        {
+            await Clients.Others.SendAsync("GetMessage", message);
+        }
+    }
+
+
+Program.cs
+
+...
+
+builder.Services.AddSignalR();
+
+...
+
+app.MapHub<MovimientosHub>("/movimientosHub");
+
+
+Seguimos con proyecto Angular
+Instalamos los paquetes de signalr
+
+npm install @microsoft/signalr
+npm install @types/signalr -save-dev
+
+Creamos el servicio para conectarnos desde Angular
+
+ng g s services/signalr --skip-tests=true
+
+environment.ts/environment.Development.ts
+
+export const environment = {
+  urlAPI: 'https://localhost:44397/api/',
+  urlSignalR: 'https://localhost:44397/movimientosHub'
+};
+
+
+signalr.service.ts
+
+import { Injectable } from '@angular/core';
+import * as signalR from '@microsoft/signalr';
+import { Subject } from 'rxjs';
+import { environment } from 'src/environments/environment';
+
+@Injectable({
+  providedIn: 'root'
+})
+export class SignalrService {
+  urlSignalR = environment.urlSignalR;
+  hubConnection!: signalR.HubConnection;
+  messageSubscription: Subject<string> = new Subject<string>();
+  connected = false;
+
+  constructor() {
+    this.configure();
+  }
+
+  configure() {
+    if (!this.hubConnection) {
+      this.hubConnection = new signalR.HubConnectionBuilder()
+        .withUrl(this.urlSignalR, {
+          skipNegotiation: true,
+          transport: signalR.HttpTransportType.WebSockets,
+        })
+        .withAutomaticReconnect()
+        .build();
+    }
+  }
+
+  connect(){
+    this.hubConnection
+        .start()
+        .then(() => {
+          console.log('Connection started');
+          this.connected = true;
+          this.listenMessages();
+        })
+        .catch((err) => console.log('Error while starting connection: ' + err));
+  }
+
+  disconnect() {
+    this.hubConnection?.stop().then(() => {
+      console.log('Connection stopped');
+      this.connected = false;
+    }).catch((err) => console.log('Error while stopping connection: ' + err));
+  }
+
+  listenMessages() {
+    this.hubConnection.on('GetMessage', (message: string) => {
+      this.messageSubscription.next(message);
+    });
+  }
+
+  sendMessage(message: string) {
+    this.hubConnection.send('SendMessage', message);
+  }
+}
+
+
+
+Nos conectamos al hub al iniciar sesión
+
+login.component.ts
+
+import { Component, OnInit } from '@angular/core';
+import { Router } from '@angular/router';
+import { MessageService } from 'primeng/api';
+import { AuthGuard } from 'src/app/guards/auth-guard.service';
+import { ILogin, ILoginResponse } from 'src/app/interfaces/login.interface';
+import { AppService } from 'src/app/services/app.service';
+import { SignalrService } from 'src/app/services/signalr.service';
+
+@Component({
+  selector: 'app-login',
+  templateUrl: './login.component.html',
+  styleUrls: ['./login.component.css'],
+  providers: [MessageService]
+})
+export class LoginComponent implements OnInit {
+  infoLogin: ILogin = {
+    email: '',
+    password: ''
+  };
+
+  constructor(
+    private router: Router,
+    private appService: AppService,
+    private messageService: MessageService,
+    private authGuard: AuthGuard,
+    private singalRService: SignalrService
+  ) {}
+
+  ngOnInit() {
+    if (this.authGuard.isLoggedIn()) {
+      this.router.navigateByUrl('almacen/categorias');
+    }
+  }
+
+  login() {
+    this.appService.login(this.infoLogin).subscribe({
+      next: (data) => {
+        console.log(data);
+        localStorage.setItem('usuario', JSON.stringify(data));
+        //  this.router.navigateByUrl('almacen');
+        this.singalRService.connect();
+        this.router.navigate([`/almacen`], { replaceUrl: true });
+      },
+      error: (err) => {
+        console.log(err);
+        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Credenciales erróneas' });
+      }
+    });
+  }
+}
+
+
+Nos desconectamos al cerrar sesión
+
+navbar.component.ts
+
+import { Component } from '@angular/core';
+import { Router } from '@angular/router';
+import { AuthGuard } from 'src/app/guards/auth-guard.service';
+import { SignalrService } from 'src/app/services/signalr.service';
+
+@Component({
+  selector: 'app-navbar',
+  templateUrl: './navbar.component.html',
+  styleUrls: ['./navbar.component.css']
+})
+export class NavbarComponent {
+  userName = '';
+  constructor(private authGuard: AuthGuard, private router: Router, private signalRService: SignalrService) {}
+
+  ngOnInit(): void {
+    this.userName = this.authGuard.getUser();
+  }
+
+  cerrarSesion() {
+    localStorage.removeItem('usuario');
+    this.signalRService.disconnect();
+    this.router.navigateByUrl('/login');
+  }
+}
+
+
+Al agregar una categoría, enviamos un mensaje al hub para el resto de usuarios. Preparamos también el componente de categorías para recibir mensajes
+
+En el módulo de almacén incluimos el toast de PrimeNG para los mensajes
+
+almacen.module.ts
+
+import { NgModule } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import { DialogModule } from 'primeng/dialog';
+import { TableModule } from 'primeng/table';
+import { ButtonModule } from 'primeng/button';
+import { ConfirmDialogModule } from 'primeng/confirmdialog';
+import { AlmacenComponent } from './almacen.component';
+import { CategoriasComponent } from './categorias/categorias.component';
+import { ProductosComponent } from './productos/productos.component';
+import { AlmacenRoutingModule } from './almacen-routing.module';
+import { AlmacenService } from './almacen.service';
+import { SharedModule } from '../shared/shared.module';
+import { ToastModule } from 'primeng/toast';
+
+@NgModule({
+  declarations: [AlmacenComponent, CategoriasComponent, ProductosComponent],
+  imports: [
+    SharedModule,
+    CommonModule,
+    AlmacenRoutingModule,
+    FormsModule,
+    DialogModule,
+    TableModule,
+    ButtonModule,
+    ConfirmDialogModule,
+    ToastModule
+  ],
+  providers: [AlmacenService]
+})
+export class AlmacenModule {}
+
+
+Ahora vamos con el componente de categorias
+
+categorias.component.ts
+
+import { Component, OnInit, ViewChild } from '@angular/core';
+import { AlmacenService } from '../almacen.service';
+import { NgForm } from '@angular/forms';
+import { ConfirmationService, MessageService } from 'primeng/api';
+import { IFamilia } from '../almacen.interfaces';
+import { SignalrService } from 'src/app/services/signalr.service';
+import { AuthGuard } from 'src/app/guards/auth-guard.service';
+
+@Component({
+  selector: 'app-categorias',
+  templateUrl: './categorias.component.html',
+  styleUrls: ['./categorias.component.css'],
+  providers: [ConfirmationService, MessageService]
+})
+export class CategoriasComponent implements OnInit {
+  constructor(
+    private almacenService: AlmacenService,
+    private confirmationService: ConfirmationService,
+    private signalrService: SignalrService,
+    private messageService: MessageService,
+    private authGuard: AuthGuard
+  ) {}
+
+  @ViewChild('formulario') formulario!: NgForm;
+  visibleError = false;
+  mensajeError = '';
+  familias: IFamilia[] = [];
+  visibleConfirm = false;
+
+  familia: IFamilia = {
+    id: 0,
+    nombre: ''
+  };
+
+  ngOnInit(): void {
+    this.getMessages();
+    this.getFamilias();
+  }
+
+  getMessages() {
+    this.signalrService.messageSubscription.subscribe({
+      next: (message) => {
+        this.messageService.add({ severity: 'info', summary: 'Alerta', detail: message });
+        this.getFamilias();
+      }
+    });
+  }
+
+  getFamilias() {
+    this.almacenService.getFamilias().subscribe({
+      next: (data) => {
+        console.log(data);
+        this.visibleError = false;
+        this.familias = data;
+      },
+      error: (err) => {
+        this.controlarError(err);
+      }
+    });
+  }
+
+  guardar() {
+    if (this.familia.id === 0) {
+      this.almacenService.addFamilia(this.familia).subscribe({
+        next: (data) => {
+          this.visibleError = false;
+          this.getFamilias();
+          this.signalrService.sendMessage(this.authGuard.getUser() + ' ha agregado la familia ' + this.familia.nombre);
+          this.formulario.reset();
+        },
+        error: (err) => {
+          this.controlarError(err);
+        }
+      });
+    } else {
+      this.almacenService.updateFamilia(this.familia).subscribe({
+        next: (data) => {
+          this.visibleError = false;
+          this.cancelarEdicion();
+          this.formulario.reset();
+          this.getFamilias();
+        },
+        error: (err) => {
+          this.controlarError(err);
+        }
+      });
+    }
+  }
+
+  edit(familia: IFamilia) {
+    this.familia = { ...familia };
+  }
+
+  cancelarEdicion() {
+    this.familia = {
+      id: 0,
+      nombre: ''
+    };
+  }
+
+  confirmDelete(familia: IFamilia) {
+    this.confirmationService.confirm({
+      message: `Eliminar la categoría ${familia.nombre}?`,
+      header: '¿Estás seguro?',
+      icon: 'pi pi-exclamation-triangle',
+      acceptLabel: 'Sí',
+      acceptButtonStyleClass: 'p-button-danger',
+      accept: () => this.deleteFamilia(familia.id!)
+    });
+  }
+
+  deleteFamilia(id: number) {
+    this.almacenService.deleteFamilia(id).subscribe({
+      next: (data) => {
+        this.visibleError = false;
+        this.formulario.reset({
+          nombreFamilia: ''
+        });
+        this.getFamilias();
+      },
+      error: (err) => {
+        this.controlarError(err);
+      }
+    });
+  }
+
+  controlarError(err: any) {
+    this.visibleError = true;
+    if (err.error && typeof err.error === 'object' && err.error.message) {
+      this.mensajeError = err.error.message;
+    } else if (typeof err.error === 'string') {
+      // Si `err.error` es un string, se asume que es el mensaje de error
+      this.mensajeError = err.error;
+    } else {
+      // Maneja el caso en el que no se recibe un mensaje de error útil
+      this.mensajeError = 'Se ha producido un error inesperado';
+    }
+  }
+}
+
+
+En el html solo agregamos al final el toast
+
+categorias.component.html
+
+...
+
+<p-toast></p-toast>
+
 
 
 

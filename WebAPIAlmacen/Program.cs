@@ -6,6 +6,7 @@ using Serilog;
 using System.Text;
 using System.Text.Json.Serialization;
 using WebAPIAlmacen.Filters;
+using WebAPIAlmacen.Hubs;
 using WebAPIAlmacen.Middlewares;
 using WebAPIAlmacen.Models;
 using WebAPIAlmacen.Services;
@@ -104,6 +105,8 @@ builder.Services.AddSwaggerGen(c =>
 Log.Logger = new LoggerConfiguration().ReadFrom.Configuration(builder.Configuration).CreateLogger();
 builder.Host.UseSerilog();
 
+builder.Services.AddSignalR();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -117,6 +120,7 @@ app.UseHttpsRedirection();
 
 app.UseCors();
 app.UseAuthorization();
+app.MapHub<MovimientosHub>("/movimientosHub");
 app.UseMiddleware<GestionYRegistroMiddleware>();
 
 app.UseStaticFiles();

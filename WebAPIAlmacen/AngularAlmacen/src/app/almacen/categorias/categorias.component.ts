@@ -1,17 +1,26 @@
 import { Component, OnInit, ViewChild } from '@angular/core';
 import { AlmacenService } from '../almacen.service';
 import { NgForm } from '@angular/forms';
-import { ConfirmationService } from 'primeng/api';
+import { ConfirmationService, MessageService } from 'primeng/api';
 import { IFamilia } from '../almacen.interfaces';
+import { SignalrService } from 'src/app/services/signalr.service';
+import { AuthGuard } from 'src/app/guards/auth-guard.service';
 
 @Component({
   selector: 'app-categorias',
   templateUrl: './categorias.component.html',
   styleUrls: ['./categorias.component.css'],
-  providers: [ConfirmationService]
+  providers: [ConfirmationService, MessageService]
 })
 export class CategoriasComponent implements OnInit {
-  constructor(private almacenService: AlmacenService, private confirmationService: ConfirmationService) {}
+  constructor(
+    private almacenService: AlmacenService,
+    private confirmationService: ConfirmationService,
+    private signalrService: SignalrService,
+    private messageService: MessageService,
+    private authGuard: AuthGuard
+  ) {}
+
   @ViewChild('formulario') formulario!: NgForm;
   visibleError = false;
   mensajeError = '';
@@ -24,7 +33,17 @@ export class CategoriasComponent implements OnInit {
   };
 
   ngOnInit(): void {
+    this.getMessages();
     this.getFamilias();
+  }
+
+  getMessages() {
+    this.signalrService.messageSubscription.subscribe({
+      next: (message) => {
+        this.messageService.add({ severity: 'info', summary: 'Alerta', detail: message });
+        this.getFamilias();
+      }
+    });
   }
 
   getFamilias() {
@@ -35,8 +54,7 @@ export class CategoriasComponent implements OnInit {
         this.familias = data;
       },
       error: (err) => {
-        this.visibleError = true;
-        this.mensajeError = 'Se ha producido un erro en la carga de familias';
+        this.controlarError(err);
       }
     });
   }
@@ -48,11 +66,10 @@ export class CategoriasComponent implements OnInit {
           this.visibleError = false;
           this.formulario.reset();
           this.getFamilias();
+          this.signalrService.sendMessage(this.authGuard.getUser() + ' ha agregado la familia ' + this.familia.nombre);
         },
         error: (err) => {
-          console.log(err);
-          this.visibleError = true;
-          this.mensajeError = err.error.msg;
+          this.controlarError(err);
         }
       });
     } else {
@@ -64,8 +81,7 @@ export class CategoriasComponent implements OnInit {
           this.getFamilias();
         },
         error: (err) => {
-          this.visibleError = true;
-          this.mensajeError = err.error.msg;
+          this.controlarError(err);
         }
       });
     }
@@ -85,11 +101,11 @@ export class CategoriasComponent implements OnInit {
   confirmDelete(familia: IFamilia) {
     this.confirmationService.confirm({
       message: `Eliminar la categoría ${familia.nombre}?`,
-      header: 'Estás seguro?',
+      header: '¿Estás seguro?',
       icon: 'pi pi-exclamation-triangle',
       acceptLabel: 'Sí',
       acceptButtonStyleClass: 'p-button-danger',
-      accept: () => this.deleteFamilia(familia.id)
+      accept: () => this.deleteFamilia(familia.id!)
     });
   }
 
@@ -98,14 +114,26 @@ export class CategoriasComponent implements OnInit {
       next: (data) => {
         this.visibleError = false;
         this.formulario.reset({
-          nombre: ''
+          nombreFamilia: ''
         });
         this.getFamilias();
       },
       error: (err) => {
-        this.visibleError = true;
-        this.mensajeError = 'Se ha producido un error';
+        this.controlarError(err);
       }
     });
+  }
+
+  controlarError(err: any) {
+    this.visibleError = true;
+    if (err.error && typeof err.error === 'object' && err.error.message) {
+      this.mensajeError = err.error.message;
+    } else if (typeof err.error === 'string') {
+      // Si `err.error` es un string, se asume que es el mensaje de error
+      this.mensajeError = err.error;
+    } else {
+      // Maneja el caso en el que no se recibe un mensaje de error útil
+      this.mensajeError = 'Se ha producido un error inesperado';
+    }
   }
 }

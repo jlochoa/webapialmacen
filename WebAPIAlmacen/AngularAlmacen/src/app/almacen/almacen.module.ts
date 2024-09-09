@@ -11,6 +11,7 @@ import { ProductosComponent } from './productos/productos.component';
 import { AlmacenRoutingModule } from './almacen-routing.module';
 import { AlmacenService } from './almacen.service';
 import { SharedModule } from '../shared/shared.module';
+import { ToastModule } from 'primeng/toast';
 
 @NgModule({
   declarations: [AlmacenComponent, CategoriasComponent, ProductosComponent],
@@ -22,7 +23,8 @@ import { SharedModule } from '../shared/shared.module';
     DialogModule,
     TableModule,
     ButtonModule,
-    ConfirmDialogModule
+    ConfirmDialogModule,
+    ToastModule
   ],
   providers: [AlmacenService]
 })
