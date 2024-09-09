@@ -88,3 +88,12 @@
 ::1 - /api/familias
 ::1 - /api/familias
 ::1 - /api/familias
+::1 - /api/familias
+::1 - /movimientosHub
+::1 - /movimientosHub
+::1 - /api/usuarios/login
+::1 - /movimientosHub
+::1 - /api/familias
+::1 - /api/usuarios/login
+::1 - /movimientosHub
+::1 - /api/familias

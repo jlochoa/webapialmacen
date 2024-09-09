@@ -1909,6 +1909,37 @@ export class SignalrService {
   }
 }
 
+En el componente principal ponemos el componente que nos dice si estamos conectados o no
+
+app.component.ts
+
+import { Component } from '@angular/core';
+import { SignalrService } from './services/signalr.service';
+
+@Component({
+  selector: 'app-root',
+  templateUrl: './app.component.html',
+  styleUrls: ['./app.component.css']
+})
+export class AppComponent {
+  title = 'AngularAlmacen';
+  get connected() {
+    return this.signalRService.connected;
+  }
+
+  constructor(private signalRService: SignalrService) {}
+}
+
+app.component.html
+
+<footer>
+    <div class="alert alert-success" role="alert" *ngIf="connected">
+       Conectado al servicio de mensajes en tiempo real
+      </div>
+      <div class="alert alert-danger" role="alert" *ngIf="!connected">
+        No conectado al servicio de mensajes en tiempo real
+      </div>
+</footer>
 
 
 Nos conectamos al hub al iniciar sesión
