@@ -64,9 +64,9 @@ export class CategoriasComponent implements OnInit {
       this.almacenService.addFamilia(this.familia).subscribe({
         next: (data) => {
           this.visibleError = false;
-          this.formulario.reset();
           this.getFamilias();
           this.signalrService.sendMessage(this.authGuard.getUser() + ' ha agregado la familia ' + this.familia.nombre);
+          this.formulario.reset();
         },
         error: (err) => {
           this.controlarError(err);
