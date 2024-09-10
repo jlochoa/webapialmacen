@@ -1,0 +1,191 @@
+Agregamos a WebAPIAlmacen un proyecto de tipo WebAPI con el nombre WebAPIMicroservicioImagenes
+
+Eliminamos clase WeatherForcast y su controller
+Creamos carpeta wwwroot
+Creamos dentro de wwwroot index.html
+
+index.html
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Microservicio imágenes</title>
+   </head>
+<body>
+    <h1>Microservicio imágenes</h1>
+    <hr/>
+    <p>Microservicio en funcionamiento</p>
+</body>
+</html>
+
+Program.cs (agregar)
+
+app.UseStaticFiles();
+
+
+En carpeta Properties-->launchSttings.json cambiamos en los perfiles
+
+     "launchUrl": "index.html",
+
+
+Creamos servicio de imágenes en WebAPIMicroservicioImagenes. Creamos carpeta Services. Dentro creamos la clase GestorArchivosLocal
+GestorArchivosLocal.cs 
+
+public class GestorArchivosLocal 
+    {
+        private readonly IWebHostEnvironment env; // Para poder localizar wwwroot
+        private readonly IHttpContextAccessor httpContextAccessor; // Para conocer la configuración del servidor para construir la url de la imagen
+
+        public GestorArchivosLocal(IWebHostEnvironment env,
+            IHttpContextAccessor httpContextAccessor)
+        {
+           this.env = env;
+           this.httpContextAccessor = httpContextAccessor;
+        }
+
+        public Task BorrarArchivo(string ruta, string carpeta)
+        {
+            if (ruta != null)
+            {
+                var nombreArchivo = Path.GetFileName(ruta);
+                string directorioArchivo = Path.Combine(env.WebRootPath, carpeta, nombreArchivo);
+
+                if (File.Exists(directorioArchivo))
+                {
+                    File.Delete(directorioArchivo);
+                }
+            }
+
+            return Task.FromResult(0);
+        }
+
+        public async Task<string> EditarArchivo(byte[] contenido, string extension, string carpeta, string ruta,
+            string contentType)
+        {
+            await BorrarArchivo(ruta, carpeta);
+            return await GuardarArchivo(contenido, extension, carpeta, contentType);
+        }
+
+        public async Task<string> GuardarArchivo(byte[] contenido, string extension, string carpeta,
+            string contentType)
+        {
+            // Creamos un nombre aleatorio con la extensión
+            var nombreArchivo = $"{Guid.NewGuid()}{extension}";
+            // La ruta será wwwroot/carpeta (en este caso imagenes)
+            string folder = Path.Combine(env.WebRootPath, carpeta);
+
+            // Si no existe la carpeta la creamos
+            if (!Directory.Exists(folder))
+            {
+                Directory.CreateDirectory(folder);
+            }
+
+            // La ruta donde dejaremos el archivo será la concatenación de la ruta de la carpeta y el nombre del archivo
+            string ruta = Path.Combine(folder, nombreArchivo);
+            // Guardamos el archivo
+            await File.WriteAllBytesAsync(ruta, contenido);
+
+            // La url de la ímagen será http o https://dominio/carpeta/nombreimagen
+            var urlActual = $"{httpContextAccessor.HttpContext.Request.Scheme}://{httpContextAccessor.HttpContext.Request.Host}";
+            var urlParaBD = Path.Combine(urlActual, carpeta, nombreArchivo).Replace("\\", "/");
+            return urlParaBD;
+        }
+    }
+
+
+    Program.cs del WebAPIMicroservicioImagenes (agregar)
+
+    builder.Services.AddHttpContextAccessor();
+builder.Services.AddTransient<GestorArchivosLocal>();
+
+Creamos carpeta DTOs y dentro creamos la clase DTOArchivo en el proyecto WebAPIAlmacen y en el proyecto WebAPIMicroservicioImagenes
+
+DTOArchivo.cs
+
+    public class DTOArchivo
+    {
+        public string Nombre { get; set; }
+        public byte[] Contenido { get; set; }
+        public string Carpeta { get; set; }
+        public string ContentType { get; set; }
+    }
+
+
+Creamos nuevo controller en WebAPIMicroservicioImagenes con el nombre ArchivosController
+
+ArchivosController.cs
+
+  [Route("api/[controller]")]
+    [ApiController]
+    public class ArchivosController : ControllerBase
+    {
+        private readonly GestorArchivosLocal _gestorArchivosLocal;
+
+        public ArchivosController(GestorArchivosLocal gestorArchivosLocal)
+        {
+            _gestorArchivosLocal = gestorArchivosLocal;
+        }
+
+        [HttpPost]
+        public async Task<ActionResult> PostArchivos([FromBody] DTOArchivo archivo)
+        {
+            string nombreArchivo;
+            var extension = Path.GetExtension(archivo.Nombre);
+            nombreArchivo = await _gestorArchivosLocal.GuardarArchivo(archivo.Contenido, extension, archivo.Carpeta, archivo.ContentType);
+     
+            return Ok(nombreArchivo );
+        }
+    }
+
+
+Llamamos al microservicio desde WebAPIAlmacen
+
+ProductosController (proyecto WebAPIAlmacen. Agregamos un punto de acceso. Este punto de acceso, a su vez, llama al microservicio para guardar la imagen del producto)
+
+// Esta post conecta con el microservicio de imágenes para guardar la imagen
+[AllowAnonymous]
+[HttpPost("servicioimagenes")]
+public async Task<ActionResult> PostProductosMicroservicio([FromForm] DTOProductoAgregar producto)
+{
+    Producto newProducto = new Producto
+    {
+        Nombre = producto.Nombre,
+        Precio = producto.Precio,
+        Descatalogado = false,
+        FechaAlta = DateOnly.FromDateTime(DateTime.Now),
+        FamiliaId = producto.FamiliaId,
+        FotoUrl = ""
+    };
+
+    var client = new HttpClient();
+    if (producto.Foto != null)
+    {
+        using (var memoryStream = new MemoryStream())
+        {
+            // Extraemos la imagen de la petición
+            await producto.Foto.CopyToAsync(memoryStream);
+            // La convertimos a un array de bytes que es lo que necesita el método de guardar
+            var contenido = memoryStream.ToArray();
+            DTOArchivo archivo = new DTOArchivo
+            {
+                Nombre = producto.Foto.FileName,
+                Contenido = contenido,
+                Carpeta = "almacen",
+                ContentType = producto.Foto.ContentType
+            };
+            var body = JsonConvert.SerializeObject(archivo);
+            var stringContent = new StringContent(body, UnicodeEncoding.UTF8, "application/json");
+            var response = await client.PostAsync("https://localhost:7021/api/Archivos", stringContent);
+            var nombreArchivo = await response.Content.ReadAsStringAsync();
+            newProducto.FotoUrl = nombreArchivo;
+        }
+    }
+
+    await context.AddAsync(newProducto);
+    await context.SaveChangesAsync();
+
+    return Ok(newProducto);
+}
+
+

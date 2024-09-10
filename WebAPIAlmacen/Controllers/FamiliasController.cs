@@ -1,10 +1,12 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using Grpc.Net.Client;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using System.Net;
 using WebAPIAlmacen.DTOs;
 using WebAPIAlmacen.Models;
+using WebAPIAlmacen.Protos;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace WebAPIAlmacen.Controllers
@@ -376,6 +378,42 @@ namespace WebAPIAlmacen.Controllers
             return Ok(id);
         }
 
+        [HttpGet("Grpc")]
+        public async Task<ActionResult<IEnumerable<Familia>>> GetFamiliasGrpc()
+        {
+            var channel = GrpcChannel.ForAddress("https://localhost:7202");
+            var client = new FamiliaGrpc.FamiliaGrpcClient(channel);
+
+            var replyFamilias = await client.GetFamiliasAsync(new GetFamiliasRequest()); // No tiene argumentos
+            List<Familia> familias = new List<Familia>();
+
+            foreach (var familiaData in replyFamilias.Familias)
+            {
+                familias.Add(new Familia
+                {
+                    Id = familiaData.Id,
+                    Nombre = familiaData.Nombre
+                });
+            }
+
+            return Ok(familias);
+        }
+
+        [HttpPost("Grpc")]
+        public async Task<ActionResult> PostGrpc(DTOFamilia familia)
+        {
+            var channel = GrpcChannel.ForAddress("https://localhost:7202");
+            var client = new FamiliaGrpc.FamiliaGrpcClient(channel);
+
+            var replyFamilia = await client.AddFamiliaAsync(new AddFamiliaRequest { Nombre = familia.Nombre });
+            var familiaAdded = new Familia
+            {
+                Id = replyFamilia.Id,
+                Nombre = replyFamilia.Nombre
+            };
+
+            return Ok(familiaAdded);
+        }
 
     }
 }

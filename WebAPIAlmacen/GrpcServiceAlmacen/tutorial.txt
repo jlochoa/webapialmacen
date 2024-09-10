@@ -1,0 +1,185 @@
+Agregamos proyecto servicio gRPC con el nombre GrpcServiceAlmacen 
+
+Instalamos los paquetes Microsoft.EntityFrameworkCore.SqlServer, Microsoft.EntityFrameworkCore.Tools, Microsoft.Extensions.Configuration.FileExtensions y Microsoft.Extensions.Configuration.Json 
+Los dos primeros son para EF y los dos últimos para utilizar Iconfiguration  
+
+Ejecutar Scaffold dirigido al proyecto. Tomar como referencia el Scaffold de WebAPIAlmacen
+
+
+Copiar el bloque ConnectionStrings del appsettings de almacen al appsettings del nuevo proyecto (tomar como referencia el appsettings de WebAPIAlmacen)
+
+ "connectionStrings": {
+    "defaultConnection": "Data Source=(localdb)\\mssqllocaldb;Initial Catalog=Almacen;Integrated Security=True"
+  }
+
+
+Borrar archivos de carpetas Protos y Services
+
+Creamos proto de familias con el nombre familia_grpc.proto
+
+familia_grpc.proto
+
+syntax = "proto3"; //Versión del proto
+// En el archivo del proyecto aparece la referencia a este archivo proto
+// https://developers.google.com/protocol-buffers/docs/proto3
+
+
+option csharp_namespace = "GrpcServiceAlmacen.Protos"; // namespace del proyecto
+
+package familia_grpc;  // Paquete que agrupa las definiciones
+
+// Definición del servicio
+service FamiliaGrpc {
+  // El servicio tiene dos métodos rpc GetFamilias y AddFamilia que recibirán por argumento un GetFamiliasRequest y un AddFamiliaRequest respectivamente
+  // Devolverán un FamiliasReply y un FamiliaReply respectivamente
+  // En el servicio Familia_Grpc que implementa este proto veremos el GetFamilias. 
+  rpc GetFamilias (GetFamiliasRequest) returns (FamiliasReply);
+  rpc AddFamilia (AddFamiliaRequest) returns (FamiliaReply);
+}
+
+message GetFamiliasRequest {
+}
+
+message AddFamiliaRequest {
+  // Cada atributo tiene un tipo, un nombre y un número
+  // Ese número debe ser correlativo y determina el identificador del campo. Cuando se serializa
+  // el message cada campo tiene una referencia y esa es el número. Es para uso interno
+  string nombre = 1;
+}
+
+message FamiliaReply {
+  int32 id = 1;
+  string nombre = 2;
+}
+
+message FamiliasReply {
+  repeated FamiliaReply familias = 1;
+}
+
+En el archivo del proyecto, dentro de la etiqueta ItemGroup, agregar al final 
+
+<Protobuf Include="Protos\familia_grpc.proto" GrpcServices="Server" />
+
+Compilamos
+Creamos en Services la clase FamiliaGrpcService
+
+FamiliaGrpcService.cs
+
+ public class FamiliaGrpcService : FamiliaGrpc.FamiliaGrpcBase
+    {
+        // FamiliaGrpcBase es la superclase que el framework gRPC ha generado de forma automática.
+        // Si hacemos Ctrl + click en FamiliaGrpcBase veremos el código fuente del código autogenerado
+
+        private readonly MiAlmacenContext _context;
+
+        public FamiliaGrpcService(MiAlmacenContext context)
+        {
+            _context = context;
+        }
+
+        public override async Task<FamiliasReply> GetFamilias(GetFamiliasRequest request, ServerCallContext context)
+        {
+            var response = new FamiliasReply
+            {
+                Familias = { }
+            };
+            var familias = await _context.Familias.ToListAsync();
+            foreach (var familia in familias)
+            {
+                response.Familias.Add(new FamiliaReply
+                {
+                    Id = familia.Id,
+                    Nombre = familia.Nombre
+                });
+            }
+
+            return response;
+        }
+
+        public override async Task<FamiliaReply> AddFamilia(AddFamiliaRequest request, ServerCallContext context)
+        {
+            var newFamilia = new Familia
+            {
+                Nombre = request.Nombre
+            };
+
+            await _context.AddAsync(newFamilia);
+            await _context.SaveChangesAsync();
+            var response = new FamiliaReply
+            {
+                Id = newFamilia.Id,
+                Nombre = newFamilia.Nombre
+            };
+
+            return response;
+        }
+    }
+
+
+Program.cs de proyecto GrpcServiceAlmacen
+
+    var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+builder.Services.AddDbContext<MiAlmacenContext>(options =>
+    {
+        options.UseSqlServer(connectionString);
+    }
+);
+
+
+...
+
+app.MapGrpcService<FamiliaGrpcService>();
+
+
+WebAPIAlmacen. Instalamos paquetes desde Nuget. Agregamos los paguetes Nuget Google.Protobuf, Grpc.Net.Client y Grpc.Tools
+
+Creamos carpeta Protos. Dentro creamos el archivo familia_grpc.proto y copiamos el código del proto del proyecto GrpcAlmacen cambiando el namespace a WebApiAlmacen
+En el archivo del proyecto, dentro de la etiqueta ItemGroup, agregar al final (Vigilar si se ha puesto de forma automática)
+<Protobuf Include="Protos\familia_grpc.proto" GrpcServices="Client" />
+Compilamos
+
+FamiliasController(agregar al final y encabezar cada uno con AllowAnonymous para las pruebas)
+
+      
+        [HttpGet("Grpc")]
+        public async Task<ActionResult<IEnumerable<Familia>>> GetFamiliasGrpc()
+        {
+            var channel = GrpcChannel.ForAddress("https://localhost:7202");
+            var client = new FamiliaGrpc.FamiliaGrpcClient(channel);
+
+            var replyFamilias = await client.GetFamiliasAsync(new GetFamiliasRequest()); // No tiene argumentos
+            List<Familia> familias = new List<Familia>();
+
+            foreach (var familiaData in replyFamilias.Familias)
+            {
+                familias.Add(new Familia
+                {
+                    Id = familiaData.Id,
+                    Nombre = familiaData.Nombre
+                });
+            }
+
+            return Ok(familias);
+        }
+
+        [HttpPost("Grpc")]
+        public async Task<ActionResult> PostGrpc(DTOFamilia familia)
+        {
+            var channel = GrpcChannel.ForAddress("https://localhost:7202");
+            var client = new FamiliaGrpc.FamiliaGrpcClient(channel);
+
+            var replyFamilia = await client.AddFamiliaAsync(new AddFamiliaRequest { Nombre = familia.Nombre });
+            var familiaAdded = new Familia
+            {
+                Id = replyFamilia.Id,
+                Nombre = replyFamilia.Nombre
+            };
+
+            return Ok(familiaAdded);
+        }
+
+
+Ejecutar los dos proyectos simultaneamente para probar
+
+
+
