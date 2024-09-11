@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import * as signalR from '@microsoft/signalr';
 import { Subject } from 'rxjs';
 import { environment } from 'src/environments/environment';
+import { AuthGuard } from '../guards/auth-guard.service';
 
 @Injectable({
   providedIn: 'root'
@@ -12,7 +13,7 @@ export class SignalrService {
   messageSubscription: Subject<string> = new Subject<string>();
   connected = false;
 
-  constructor() {
+  constructor(private authGuard:AuthGuard) {
     this.configure();
   }
 
@@ -21,32 +22,32 @@ export class SignalrService {
       this.hubConnection = new signalR.HubConnectionBuilder()
         .withUrl(this.urlSignalR, {
           skipNegotiation: true,
-          transport: signalR.HttpTransportType.WebSockets
+          transport: signalR.HttpTransportType.WebSockets,
         })
         .withAutomaticReconnect()
         .build();
     }
+    if (this.authGuard.isLoggedIn()){
+      this.connect();
+    }
   }
 
-  connect() {
+  connect(){
     this.hubConnection
-      .start()
-      .then(() => {
-        console.log('Connection started');
-        this.connected = true;
-        this.listenMessages();
-      })
-      .catch((err) => console.log('Error while starting connection: ' + err));
+        .start()
+        .then(() => {
+          console.log('Connection started');
+          this.connected = true;
+          this.listenMessages();
+        })
+        .catch((err) => console.log('Error while starting connection: ' + err));
   }
 
   disconnect() {
-    this.hubConnection
-      ?.stop()
-      .then(() => {
-        console.log('Connection stopped');
-        this.connected = false;
-      })
-      .catch((err) => console.log('Error while stopping connection: ' + err));
+    this.hubConnection.stop().then(() => {
+      console.log('Connection stopped');
+      this.connected = false;
+    }).catch((err) => console.log('Error while stopping connection: ' + err));
   }
 
   listenMessages() {
