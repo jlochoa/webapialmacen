@@ -1,0 +1,173 @@
+Instalar erlang para dar soporte a RabbitMQ (IMPORTANTE: Instalar la v. 26)
+https://www.erlang.org/downloads
+
+Instalar RabbitMQ
+
+Siguiente paso: Ubicar el explorador de carpetas y archivos en la carpeta de instalación de rabbit, subcarpeta sbin
+C:\Program Files\RabbitMQ Server\rabbitmq_server-3.13.7\sbin
+
+Entrar desde una terminal como administradores en esa ubicación y ejecutar:
+
+rabbitmq-plugins enable rabbitmq_management
+
+Reiniciar el servidor rabbit (primero stop y después start)
+
+Entrar a la interfaz visual de Rabbit
+http://localhost:15672/
+usuario: guest
+password: guest
+
+Vamos a Queues and Streams, add a new queue
+En el name escribimos pedidos y pulsamos en Add queue
+
+RabbitMQ con ASP .Net Core
+
+Proyecto WebAPI tendrá un controller con una post para dar de alta pedidos (simulados, sin bd)
+Haremos un servicio que configure RabbitMQ y envíe los pedidos a una cola
+
+Aplicación de consola recibirá los pedidos de esa cola y los procesará
+
+Creamos nueva solución en blanco con el nombre RabbitMQ
+
+Creamos carpeta Services. Dentro, creamos la clase RabbitMQProducer
+
+public class RabbitMQProducer
+    {
+        public void SendMessage(DTOPedido message)
+        {
+            ConnectionFactory factory = new ConnectionFactory();
+            factory.HostName = "localhost";
+            factory.VirtualHost = "/";
+            factory.Port = 5672;
+            factory.UserName = "guest";
+            factory.Password = "guest";
+
+            var connection = factory.CreateConnection();
+            using var channel = connection.CreateModel();
+
+            channel.ExchangeDeclare("ex.pedidos", "direct", true, false);
+            channel.QueueDeclare("pedidos", true, false, false, null);
+            channel.QueueBind("pedidos", "ex.pedidos", "pedidos");
+
+            var json = JsonConvert.SerializeObject(message);
+            var body = Encoding.UTF8.GetBytes(json);
+
+            channel.BasicPublish(exchange: "ex.pedidos", routingKey: "pedidos", body: body);
+        }
+    }
+
+
+Crear carpeta DTOs y dentro DTOPedido
+
+public class DTOPedido
+    {
+        public string Nombre { get; set; }
+
+        public decimal Precio { get; set; }
+
+        public int Cantidad { get; set; }
+    }
+
+
+
+RabbitMQProducer.cs
+
+ public class RabbitMQProducer
+ {
+     public void SendMessage(DTOPedido message)
+     {
+         ConnectionFactory factory = new ConnectionFactory();
+         factory.HostName = "localhost";
+         factory.VirtualHost = "/";
+         factory.Port = 5672;
+         factory.UserName = "guest";
+         factory.Password = "guest";
+
+         var connection = factory.CreateConnection();
+         var channel = connection.CreateModel();
+
+         // Exchange (pimer receptor) del message (en nuestro caso el pedido)
+         // No hace falta crearlo en Rabbit, se crea de forma automátia
+         channel.ExchangeDeclare("ex.pedidos", "direct", true, false);
+         // Queue (cola) a la que enviará los messages (pedidos) el exchange
+         // ex.pedidos. Esta cola sí hay que crearla en Rabbit
+         channel.QueueDeclare("pedidos", true, false, false, null);
+         // Vinculamos el exchange ex.pedidos con la queue pedidos
+         // También especificamos la ruta donde dirigir los messages (pedidos)
+         channel.QueueBind("pedidos", "ex.pedidos", "pedidos");
+
+         var json = JsonConvert.SerializeObject(message);
+         var body = Encoding.UTF8.GetBytes(json);
+
+         channel.BasicPublish(exchange: "ex.pedidos", routingKey: "pedidos", body: body);
+     }
+ }
+
+
+Creamos el controller PedidosController
+
+[ApiController]
+[Route("pedidos")]
+public class PedidosController : ControllerBase
+{
+    private readonly RabbitMQProducer messagePublisher;
+
+    public PedidosController(RabbitMQProducer messagePublisher)
+    {
+        this.messagePublisher = messagePublisher;
+    }
+
+    [HttpPost]
+    public async Task<ActionResult<DTOPedido>> PostPedido(DTOPedido pedido)
+    {
+        DTOPedido newPedido = new DTOPedido()
+        {
+            Nombre = pedido.Nombre,
+            Precio = pedido.Precio,
+            Cantidad = pedido.Cantidad
+        };
+
+        messagePublisher.SendMessage(newPedido);
+
+        return Ok();
+    }
+}
+
+
+Agregamos proyecto de consola RabbitMQConsumer
+Será el Consumer
+Desde Nuget, instalamos el paquete RabbitMQ.Client
+
+Program.cs (último proyecto creado)
+
+IConnection connection;
+IModel channel;
+
+// Creamos conexión
+ConnectionFactory factory = new ConnectionFactory();
+factory.HostName = "localhost";
+factory.VirtualHost = "/";
+factory.Port = 5672;
+factory.UserName = "guest";
+factory.Password = "guest";
+
+
+connection = factory.CreateConnection();
+channel = connection.CreateModel();
+// Creamos canal
+var consumer = new EventingBasicConsumer(channel);
+consumer.Received += Consumer_Received;
+channel.BasicConsume("pedidos", true, consumer);
+
+Console.WriteLine("Esperando pedidos...");
+Console.ReadKey();
+
+void Consumer_Received(object? sender, BasicDeliverEventArgs e)
+{
+    string pedido = Encoding.UTF8.GetString(e.Body.ToArray());
+    Console.WriteLine("Pedido: " + pedido);
+}
+
+
+
+
